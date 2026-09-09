@@ -3,6 +3,7 @@ import path from 'node:path';
 import { openDb } from './db.js';
 import { runCollection } from './pipeline.js';
 import { dataDir, ensureDirectories } from './config.js';
+import { hydratePublicData } from './hydrate.js';
 
 const command = process.argv[2] || 'help';
 
@@ -27,6 +28,10 @@ if (command === 'init') {
   const target = path.join(dataDir, 'exports', `adas-accidents-${stamp}.json`);
   fs.writeFileSync(target, JSON.stringify(rows.map((r) => ({ ...r, labels: JSON.parse(r.labels_json) })), null, 2));
   console.log(target); db.close();
+} else if (command === 'hydrate') {
+  const db = openDb();
+  console.log(JSON.stringify(hydratePublicData(process.argv[3] || '../china-adas-accident-database/data/reports.json', db), null, 2));
+  db.close();
 } else {
-  console.log('Usage: npm run init | collect | import | serve | export | stats');
+  console.log('Usage: npm run init | collect | import | serve | export | stats | hydrate');
 }

@@ -1,6 +1,6 @@
 # China ADAS Accident Methods / 中国 ADAS 事故观察方法库
 
-This is the central implementation repository. It owns China-market discovery feeds, authorized-import handling, normalization, deduplication, classification, review workflow, and the SQLite working database. The companion `china-adas-accident-database` repository is a separate public publication and never receives this repository's raw database, logs, or secrets.
+This is the central implementation repository at https://github.com/fengguode/CN_Vehicle_Accident_Updater. It owns China-market discovery feeds, authorized-import handling, normalization, deduplication, classification, review workflow, and the SQLite working database. The companion [public database](https://github.com/fengguode/CN_Vehicle_Accident_Database) is a separate publication and never receives this repository's raw database, logs, or secrets.
 
 A local, auditable research system for collecting public reports of ADAS-related road incidents in mainland China, incrementally updating them each day, and labeling them from multiple perspectives.
 
@@ -91,6 +91,8 @@ npm run stats     Print record and run counts
 npm run export    Write a dated JSON snapshot
 npm test          Run unit tests
 ```
+
+`npm run hydrate -- path\to\reports.json` reconstructs or updates local SQLite state from a public `data/reports.json` export. Stable IDs, labels, review fields, and provenance are preserved; internal `raw_json` is replaced by a safe hydration marker rather than importing hidden source data.
 
 ## Publish the public repository
 

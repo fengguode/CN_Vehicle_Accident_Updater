@@ -6,3 +6,4 @@ New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 $Stamp = Get-Date -Format 'yyyy-MM-dd'
 node src/cli.js collect *>> (Join-Path $LogDir "$Stamp.log")
 node src/cli.js export *>> (Join-Path $LogDir "$Stamp.log")
+node src/publish.js (Join-Path $ProjectDir '..\china-adas-accident-database') *>> (Join-Path $LogDir "$Stamp.log")

@@ -11,6 +11,7 @@
     "serve": "node src/server.js",
     "export": "node src/cli.js export",
     "publish": "node src/publish.js",
+    "hydrate": "node src/cli.js hydrate",
     "stats": "node src/cli.js stats",
     "test": "node --test"
   },
