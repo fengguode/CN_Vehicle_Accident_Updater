@@ -18,7 +18,8 @@ test('resolves a public Google News wrapper and preserves discovery URL', async 
     assert.equal(report.source_url, 'https://publisher.example/story/1');
     assert.equal(report.discovery_url, wrapper);
     assert.equal(report.english_description_source, 'machine_heuristic_v1');
-    assert.match(report.english_description, /Reported/);
+    assert.match(report.english_description, /Unverified report/);
+    assert.doesNotMatch(report.english_description, /[\u3400-\u9fff]/);
   } finally { globalThis.fetch = originalFetch; }
 });
 

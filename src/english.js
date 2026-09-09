@@ -1,19 +1,24 @@
-const phrases = [
-  ['辅助驾驶', 'driver-assistance'], ['智能驾驶', 'smart-driving'], ['自动驾驶', 'automated-driving'], ['事故', 'incident'], ['碰撞', 'collision'], ['追尾', 'rear-end collision'], ['失控', 'loss of control'], ['开启', 'active'], ['启用', 'active'], ['高速', 'highway'], ['道路', 'road'], ['车辆', 'vehicle'], ['乘员', 'occupant'], ['受伤', 'injured'], ['死亡', 'fatal'], ['称', 'reported'], ['导致', 'resulted in'], ['特斯拉', 'Tesla'], ['小鹏', 'XPeng'], ['理想', 'Li Auto'], ['华为', 'Huawei'], ['问界', 'AITO'], ['蔚来', 'NIO'], ['比亚迪', 'BYD']
-];
-
-function translateKnown(text) {
-  let value = String(text || '').replace(/[“”「」]/g, '');
-  for (const [from, to] of phrases) value = value.split(from).join(` ${to} `);
-  return value.replace(/[，。！？：；、]/g, ', ').replace(/\s+/g, ' ').replace(/,\s*,/g, ',').replace(/^, |, $/g, '').trim();
-}
+const provinces = { 北京: 'Beijing', 天津: 'Tianjin', 上海: 'Shanghai', 重庆: 'Chongqing', 河北: 'Hebei', 山西: 'Shanxi', 辽宁: 'Liaoning', 吉林: 'Jilin', 黑龙江: 'Heilongjiang', 江苏: 'Jiangsu', 浙江: 'Zhejiang', 安徽: 'Anhui', 福建: 'Fujian', 江西: 'Jiangxi', 山东: 'Shandong', 河南: 'Henan', 湖北: 'Hubei', 湖南: 'Hunan', 广东: 'Guangdong', 海南: 'Hainan', 四川: 'Sichuan', 贵州: 'Guizhou', 云南: 'Yunnan', 陕西: 'Shaanxi', 甘肃: 'Gansu', 青海: 'Qinghai', 内蒙古: 'Inner Mongolia', 广西: 'Guangxi', 西藏: 'Tibet', 宁夏: 'Ningxia', 新疆: 'Xinjiang', 香港: 'Hong Kong', 澳门: 'Macau' };
+const causes = { perception_failure: 'a possible perception failure', unexpected_braking: 'a possible unexpected-braking issue', lane_or_steering: 'a possible lane or steering issue', driver_misuse_or_inattention: 'a possible driver-attention or misuse issue', handover_failure: 'a possible handover issue', speed_or_distance: 'a possible following-distance or speed issue', road_or_weather: 'a possible road or weather factor', mechanical_or_tire: 'a possible mechanical or tire issue', unknown_or_disputed: 'an unknown or disputed cause' };
+const roads = { highway: 'a highway', urban: 'an urban road', rural: 'a rural road', parking: 'a parking area', other_or_unknown: 'an unspecified road' };
+const severity = { fatal: 'fatal outcome', serious_injury: 'serious injury', minor_injury: 'minor injury', property_damage: 'property damage', near_miss: 'near miss' };
+const modes = { active: 'The report claims driver assistance was active.', claimed_active: 'The report claims driver assistance may have been active.', inactive: 'The report says driver assistance was inactive.', unknown: 'The driver-assistance state is unknown.' };
+const statuses = { human_verified: 'Verified report', disputed: 'Disputed report', unverified: 'Unverified report' };
+const ascii = (value) => /^[\x00-\x7F]*$/.test(String(value || ''));
 
 /** Conservative, clearly machine-generated fallback; it does not infer causation or facts. */
 export function englishDescription({ title, content, brand, cause, verification_status }) {
-  const translatedTitle = translateKnown(title).replace(/[\u3400-\u9fff]/g, '').replace(/\s+/g, ' ').trim().slice(0, 220);
-  const context = translateKnown(content).replace(/[\u3400-\u9fff]/g, '').replace(/\s+/g, ' ').trim().slice(0, 180);
-  const label = [brand && brand !== 'Unknown' ? brand : null, cause && cause !== 'unclassified' ? `label: ${cause}` : null].filter(Boolean).join('; ');
-  return [translatedTitle ? `Reported ${translatedTitle}.` : 'A public incident report was collected.', context ? `English translation unavailable; source text omitted.` : null, label ? `Automatic labels: ${label}.` : null, `Verification status: ${verification_status || 'unverified'}.`].filter(Boolean).join(' ');
+  const status = statuses[verification_status] || 'Unverified report';
+  const subject = brand && brand !== 'Unknown' ? brand : 'an unidentified vehicle';
+  const location = roads[arguments[0]?.road_type] || 'an unspecified road';
+  const province = provinces[arguments[0]?.province] || null;
+  const place = province ? `${location} in ${province}` : location;
+  const causePhrase = causes[cause] || 'an unclassified cause';
+  const model = arguments[0]?.model && ascii(arguments[0].model) ? ` (${arguments[0].model})` : '';
+  const severityPhrase = severity[arguments[0]?.severity];
+  const source = arguments[0]?.source_name && ascii(arguments[0].source_name) ? ` Source: ${arguments[0].source_name}.` : '';
+  const date = String(arguments[0]?.event_date || arguments[0]?.published_at || '').slice(0, 10);
+  return `${status} involving ${subject}${model} on ${place}, categorized as ${causePhrase}. ${modes[arguments[0]?.adas_mode] || modes.unknown}${severityPhrase ? ` Coded outcome: ${severityPhrase}.` : ''}${date ? ` Report date: ${date}.` : ''}${source}`;
 }
 
 export async function translateDescription(text, options = {}) {
