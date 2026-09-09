@@ -20,11 +20,12 @@ export async function backfillReports(options = {}) {
       discoveryUrl = result.discovery_url || discoveryUrl || sourceUrl;
       if (result.resolved && result.source_url !== sourceUrl) { sourceUrl = result.source_url; resolved++; }
     }
-    const fallback = englishDescription(row);
+    const effectivePublisher = publisherName(sourceUrl);
+    const fallback = englishDescription({ ...row, source_url: sourceUrl, discovery_url: discoveryUrl, publisher_name: effectivePublisher });
     const description = await translateDescription(`${row.title}. ${row.content || ''}`) || fallback;
     if (description !== row.english_description) described++;
     db.prepare(`UPDATE reports SET source_url=?, canonical_url=?, discovery_url=?, publisher_name=?, english_description=?, english_description_source=?, updated_at=? WHERE id=?`)
-      .run(sourceUrl, sourceUrl, discoveryUrl, publisherName(sourceUrl), description, row.english_description_source || (description !== fallback ? 'configured_translation_endpoint' : ENGLISH_DESCRIPTION_SOURCE), new Date().toISOString(), row.id);
+      .run(sourceUrl, sourceUrl, discoveryUrl, effectivePublisher, description, row.english_description_source || (description !== fallback ? 'configured_translation_endpoint' : ENGLISH_DESCRIPTION_SOURCE), new Date().toISOString(), row.id);
   }
   if (ownDb) db.close();
   return { records: rows.length, attempted, resolved, described };

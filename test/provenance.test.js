@@ -4,6 +4,7 @@ import { resolvePublicSource } from '../src/provenance.js';
 import { extractGoogleArticleParams, buildGoogleBatchRequest, parseBatchExecuteUrl, publisherName } from '../src/provenance.js';
 import { normalizeReport } from '../src/normalize.js';
 import { needsResolution } from '../src/backfill.js';
+import { englishDescription } from '../src/english.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -46,4 +47,11 @@ test('backfill skips already-resolved publisher URLs even when discovery URL is 
 test('publisher names never inherit Google discovery provenance', () => {
   assert.equal(publisherName('https://news.google.com/rss/articles/ABC'), null);
   assert.equal(publisherName('https://thepaper.cn/news/1'), 'The Paper');
+});
+
+test('structured fallback uses resolved publisher instead of discovery source', () => {
+  const description = englishDescription({ source_url: 'https://publisher.example/story', publisher_name: 'publisher.example', source_name: 'Google News', brand: 'XPeng', cause: 'speed_or_distance', road_type: 'highway', verification_status: 'unverified' });
+  assert.match(description, /Source: publisher\.example/);
+  assert.doesNotMatch(description, /Google News/);
+  assert.doesNotMatch(description, /Original publisher unspecified/);
 });
