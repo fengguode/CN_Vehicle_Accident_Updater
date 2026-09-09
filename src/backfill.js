@@ -2,6 +2,10 @@ import { openDb } from './db.js';
 import { resolvePublicSource, isGoogleNewsWrapper } from './provenance.js';
 import { englishDescription, ENGLISH_DESCRIPTION_SOURCE, translateDescription } from './english.js';
 
+export function needsResolution(row) {
+  return isGoogleNewsWrapper(row.source_url);
+}
+
 export async function backfillReports(options = {}) {
   const db = options.db || openDb();
   const ownDb = !options.db;
@@ -10,7 +14,7 @@ export async function backfillReports(options = {}) {
   for (const row of rows) {
     let sourceUrl = row.source_url;
     let discoveryUrl = row.discovery_url;
-    if (isGoogleNewsWrapper(sourceUrl) || isGoogleNewsWrapper(discoveryUrl)) {
+    if (needsResolution(row)) {
       attempted++;
       const result = options.offline ? { source_url: sourceUrl, discovery_url: discoveryUrl || sourceUrl, resolved: false } : await resolvePublicSource(discoveryUrl || sourceUrl, options);
       discoveryUrl = result.discovery_url || discoveryUrl || sourceUrl;

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { resolvePublicSource } from '../src/provenance.js';
 import { extractGoogleArticleParams, buildGoogleBatchRequest, parseBatchExecuteUrl } from '../src/provenance.js';
 import { normalizeReport } from '../src/normalize.js';
+import { needsResolution } from '../src/backfill.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -32,4 +33,9 @@ test('extracts Google metadata and parses batchexecute publisher URLs', () => {
 test('does not rewrite non-Google source URLs', async () => {
   const result = await resolvePublicSource('https://publisher.example/story/2', { delayMs: 0 });
   assert.deepEqual(result, { source_url: 'https://publisher.example/story/2', discovery_url: null, resolved: false });
+});
+
+test('backfill skips already-resolved publisher URLs even when discovery URL is Google', () => {
+  assert.equal(needsResolution({ source_url: 'https://publisher.example/story', discovery_url: 'https://news.google.com/rss/articles/ABC' }), false);
+  assert.equal(needsResolution({ source_url: 'https://news.google.com/rss/articles/ABC', discovery_url: null }), true);
 });
