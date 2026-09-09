@@ -4,6 +4,7 @@ import { openDb, beginRun, finishRun, insertReport } from './db.js';
 import { collectRss } from './rss.js';
 import { inboxFiles, readJsonl } from './importer.js';
 import { normalizeReport } from './normalize.js';
+import { translateDescription } from './english.js';
 
 export async function runCollection(options = {}) {
   const db = options.db || openDb();
@@ -20,6 +21,8 @@ export async function runCollection(options = {}) {
       stats.fetched += items.length;
       for (const item of items) {
         const report = normalizeReport(item, source);
+        const translated = await translateDescription(`${report.title}. ${report.content}`);
+        if (translated) { report.english_description = translated; report.english_description_source = 'configured_translation_endpoint'; }
         if (!report.title || report.relevance_score < 0.55) { stats.rejected++; continue; }
         if (insertReport(db, report)) stats.inserted++; else stats.duplicates++;
       }

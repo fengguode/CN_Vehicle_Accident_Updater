@@ -1,7 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { resolvePublicSource } from '../src/provenance.js';
+import { extractGoogleArticleParams, buildGoogleBatchRequest, parseBatchExecuteUrl } from '../src/provenance.js';
 import { normalizeReport } from '../src/normalize.js';
+import fs from 'node:fs';
+import path from 'node:path';
 
 test('resolves a public Google News wrapper and preserves discovery URL', async () => {
   const originalFetch = globalThis.fetch;
@@ -16,6 +19,14 @@ test('resolves a public Google News wrapper and preserves discovery URL', async 
     assert.equal(report.english_description_source, 'machine_heuristic_v1');
     assert.match(report.english_description, /Reported/);
   } finally { globalThis.fetch = originalFetch; }
+});
+
+test('extracts Google metadata and parses batchexecute publisher URLs', () => {
+  const fixture = fs.readFileSync(path.join('test', 'fixtures', 'google-news-wrapper.html'), 'utf8');
+  const params = extractGoogleArticleParams(fixture);
+  assert.deepEqual(params, { id: 'ARTICLE_ID_123', timestamp: '1725891265', signature: 'SIGNATURE_123' });
+  assert.match(buildGoogleBatchRequest(params), /Fbv4je/);
+  assert.equal(parseBatchExecuteUrl('[[["Fbv4je","https:\\/\\/publisher.example\\/story?id=1"]]]'), 'https://publisher.example/story?id=1');
 });
 
 test('does not rewrite non-Google source URLs', async () => {

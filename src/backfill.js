@@ -1,6 +1,6 @@
 import { openDb } from './db.js';
 import { resolvePublicSource, isGoogleNewsWrapper } from './provenance.js';
-import { englishDescription, ENGLISH_DESCRIPTION_SOURCE } from './english.js';
+import { englishDescription, ENGLISH_DESCRIPTION_SOURCE, translateDescription } from './english.js';
 
 export async function backfillReports(options = {}) {
   const db = options.db || openDb();
@@ -16,10 +16,11 @@ export async function backfillReports(options = {}) {
       discoveryUrl = result.discovery_url || discoveryUrl || sourceUrl;
       if (result.resolved && result.source_url !== sourceUrl) { sourceUrl = result.source_url; resolved++; }
     }
-    const description = row.english_description || englishDescription(row);
-    if (!row.english_description) described++;
+    const fallback = englishDescription(row);
+    const description = await translateDescription(`${row.title}. ${row.content || ''}`) || fallback;
+    if (description !== row.english_description) described++;
     db.prepare(`UPDATE reports SET source_url=?, canonical_url=?, discovery_url=?, english_description=?, english_description_source=?, updated_at=? WHERE id=?`)
-      .run(sourceUrl, sourceUrl, discoveryUrl, description, row.english_description_source || ENGLISH_DESCRIPTION_SOURCE, new Date().toISOString(), row.id);
+      .run(sourceUrl, sourceUrl, discoveryUrl, description, row.english_description_source || (description !== fallback ? 'configured_translation_endpoint' : ENGLISH_DESCRIPTION_SOURCE), new Date().toISOString(), row.id);
   }
   if (ownDb) db.close();
   return { records: rows.length, attempted, resolved, described };

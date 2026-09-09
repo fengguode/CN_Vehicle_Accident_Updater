@@ -10,10 +10,22 @@ function translateKnown(text) {
 
 /** Conservative, clearly machine-generated fallback; it does not infer causation or facts. */
 export function englishDescription({ title, content, brand, cause, verification_status }) {
-  const translatedTitle = translateKnown(title).slice(0, 220);
-  const context = translateKnown(content).slice(0, 180);
+  const translatedTitle = translateKnown(title).replace(/[\u3400-\u9fff]/g, '').replace(/\s+/g, ' ').trim().slice(0, 220);
+  const context = translateKnown(content).replace(/[\u3400-\u9fff]/g, '').replace(/\s+/g, ' ').trim().slice(0, 180);
   const label = [brand && brand !== 'Unknown' ? brand : null, cause && cause !== 'unclassified' ? `label: ${cause}` : null].filter(Boolean).join('; ');
-  return [translatedTitle ? `Reported ${translatedTitle}.` : 'A public report was collected.', context ? `Source text: ${context}.` : null, label ? `Automatic labels: ${label}.` : null, `Verification status: ${verification_status || 'unverified'}.`].filter(Boolean).join(' ');
+  return [translatedTitle ? `Reported ${translatedTitle}.` : 'A public incident report was collected.', context ? `English translation unavailable; source text omitted.` : null, label ? `Automatic labels: ${label}.` : null, `Verification status: ${verification_status || 'unverified'}.`].filter(Boolean).join(' ');
+}
+
+export async function translateDescription(text, options = {}) {
+  const endpoint = options.endpoint || process.env.ADAS_TRANSLATION_ENDPOINT;
+  if (!endpoint) return null;
+  try {
+    const response = await fetch(endpoint, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text, target_language: 'en' }), signal: AbortSignal.timeout(options.timeoutMs ?? 15000) });
+    if (!response.ok) return null;
+    const body = await response.json();
+    const value = body.translation || body.translatedText || body.text;
+    return typeof value === 'string' && !/[\u3400-\u9fff]/.test(value) ? value.trim() : null;
+  } catch { return null; }
 }
 
 export const ENGLISH_DESCRIPTION_SOURCE = 'machine_heuristic_v1';
