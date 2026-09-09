@@ -8,6 +8,6 @@ test('public dataset contract is documented', () => {
   const metadata = JSON.parse(fs.readFileSync(path.join(root, 'data', 'metadata.json')));
   const reports = JSON.parse(fs.readFileSync(path.join(root, 'data', 'reports.json')));
   assert.equal(metadata.record_count, reports.length);
-  assert.equal(metadata.schema_version, '1.0.0');
+  assert.equal(metadata.schema_version, '1.1.0');
   assert.ok(fs.existsSync(path.join(root, 'site', 'index.html')));
 });

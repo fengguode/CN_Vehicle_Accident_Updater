@@ -4,6 +4,7 @@ import { openDb } from './db.js';
 import { runCollection } from './pipeline.js';
 import { dataDir, ensureDirectories } from './config.js';
 import { hydratePublicData } from './hydrate.js';
+import { backfillReports } from './backfill.js';
 
 const command = process.argv[2] || 'help';
 
@@ -32,6 +33,10 @@ if (command === 'init') {
   const db = openDb();
   console.log(JSON.stringify(hydratePublicData(process.argv[3] || '../china-adas-accident-database/data/reports.json', db), null, 2));
   db.close();
+} else if (command === 'backfill') {
+  const db = openDb();
+  console.log(JSON.stringify(await backfillReports({ db, offline: process.argv.includes('--offline') }), null, 2));
+  db.close();
 } else {
-  console.log('Usage: npm run init | collect | import | serve | export | stats | hydrate');
+  console.log('Usage: npm run init | collect | import | serve | export | stats | hydrate | backfill [--offline]');
 }

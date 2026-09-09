@@ -24,5 +24,9 @@ export function parseRss(xml) {
 export async function collectRss(source) {
   const response = await fetch(source.url, { headers: { 'user-agent': 'ChinaADASAccidentMonitor/0.1 (+local-research)' }, signal: AbortSignal.timeout(20000) });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return parseRss(await response.text());
+  const items = parseRss(await response.text());
+  const resolved = [];
+  for (const item of items) resolved.push({ ...item, ...(await resolvePublicSource(item.url)) });
+  return resolved;
 }
+import { resolvePublicSource } from './provenance.js';

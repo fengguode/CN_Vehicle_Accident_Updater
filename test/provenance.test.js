@@ -1,0 +1,24 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { resolvePublicSource } from '../src/provenance.js';
+import { normalizeReport } from '../src/normalize.js';
+
+test('resolves a public Google News wrapper and preserves discovery URL', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response('<html><link rel="canonical" href="https://publisher.example/story/1"></html>', { headers: { 'content-type': 'text/html' } });
+  try {
+    const wrapper = 'https://news.google.com/rss/articles/ABC?hl=zh-CN';
+    const resolved = await resolvePublicSource(wrapper, { delayMs: 0 });
+    assert.equal(resolved.source_url, 'https://publisher.example/story/1');
+    const report = normalizeReport({ title: '辅助驾驶事故', url: wrapper, source_url: resolved.source_url, discovery_url: wrapper, content: '公开报道' });
+    assert.equal(report.source_url, 'https://publisher.example/story/1');
+    assert.equal(report.discovery_url, wrapper);
+    assert.equal(report.english_description_source, 'machine_heuristic_v1');
+    assert.match(report.english_description, /Reported/);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('does not rewrite non-Google source URLs', async () => {
+  const result = await resolvePublicSource('https://publisher.example/story/2', { delayMs: 0 });
+  assert.deepEqual(result, { source_url: 'https://publisher.example/story/2', discovery_url: null, resolved: false });
+});

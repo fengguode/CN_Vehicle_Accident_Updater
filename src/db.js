@@ -71,6 +71,11 @@ export function migrate(db) {
       updated_at TEXT NOT NULL
     );
   `);
+  for (const statement of [
+    'ALTER TABLE reports ADD COLUMN discovery_url TEXT',
+    'ALTER TABLE reports ADD COLUMN english_description TEXT',
+    "ALTER TABLE reports ADD COLUMN english_description_source TEXT"
+  ]) { try { db.exec(statement); } catch (error) { if (!/duplicate column name/i.test(error.message)) throw error; } }
 }
 
 export function beginRun(db) {

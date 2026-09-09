@@ -94,6 +94,8 @@ npm test          Run unit tests
 
 `npm run hydrate -- path\to\reports.json` reconstructs or updates local SQLite state from a public `data/reports.json` export. Stable IDs, labels, review fields, and provenance are preserved; internal `raw_json` is replaced by a safe hydration marker rather than importing hidden source data.
 
+`npm run backfill` resolves public Google News wrapper URLs one at a time with a short delay, preserves each wrapper in `discovery_url`, and fills conservative `machine_heuristic_v1` English descriptions. Use `npm run backfill -- --offline` to generate descriptions without network requests. Resolution only follows publicly available redirects/metadata and never bypasses login or access controls.
+
 ## Publish the public repository
 
 After collection or review, publish a sanitized JSON snapshot and static HTML page into the sibling public repository:

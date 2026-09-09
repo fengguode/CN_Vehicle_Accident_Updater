@@ -12,6 +12,7 @@
     "export": "node src/cli.js export",
     "publish": "node src/publish.js",
     "hydrate": "node src/cli.js hydrate",
+    "backfill": "node src/cli.js backfill",
     "stats": "node src/cli.js stats",
     "test": "node --test"
   },
