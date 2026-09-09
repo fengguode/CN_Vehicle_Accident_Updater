@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>中国 ADAS 事故观察</title><link rel="stylesheet" href="/styles.css"></head>
+<body>
+  <header><div><p class="eyebrow">CHINA ADAS INCIDENT INDEX</p><h1>中国 ADAS 事故观察</h1><p class="lede">公开报道线索的增量采集、分类与人工核验。收录不等于事实认定。</p></div><button id="collect">立即更新</button></header>
+  <main>
+    <section class="metrics"><article><span>收录线索</span><strong id="total">—</strong></article><article><span>待人工核验</span><strong id="unverified">—</strong></article><article><span>最近运行</span><strong id="last-run">—</strong></article></section>
+    <section class="workspace">
+      <aside><h2>筛选</h2><label>关键词<input id="q" placeholder="品牌、地点、描述"></label><label>品牌<select id="brand"><option value="">全部品牌</option></select></label><label>原因<select id="cause"><option value="">全部原因</option></select></label><label>省份<select id="province"><option value="">全部省份</option></select></label><label>道路<select id="road_type"><option value="">全部道路</option></select></label><label>严重度<select id="severity"><option value="">全部严重度</option></select></label><button class="secondary" id="reset">清除筛选</button><div class="notice"><b>证据提示</b><p>社交媒体内容可能不完整、误传或删除。请以警方、监管机构及多源交叉验证为准。</p></div></aside>
+      <section><div class="section-head"><div><p class="eyebrow">REPORT STREAM</p><h2>事故线索</h2></div><span id="count"></span></div><div id="reports" class="reports"></div></section>
+    </section>
+  </main><script type="module" src="/app.js"></script>
+</body></html>

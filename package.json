@@ -1,0 +1,20 @@
+{
+  "name": "china-adas-accident-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Auditable, incremental collection and classification of publicly reported ADAS-related accidents in China.",
+  "scripts": {
+    "init": "node src/cli.js init",
+    "collect": "node src/cli.js collect",
+    "import": "node src/cli.js import",
+    "serve": "node src/server.js",
+    "export": "node src/cli.js export",
+    "publish": "node src/publish.js",
+    "stats": "node src/cli.js stats",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22.5"
+  }
+}
