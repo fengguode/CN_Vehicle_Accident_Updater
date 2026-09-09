@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { classify } from './classifier.js';
 import { englishDescription, ENGLISH_DESCRIPTION_SOURCE } from './english.js';
+import { publisherName } from './provenance.js';
 
 export function cleanUrl(raw) {
   if (!raw) return null;
@@ -34,6 +35,7 @@ export function normalizeReport(input, source = {}) {
     fingerprint: fingerprint({ ...input, title, source_url: sourceUrl }),
     canonical_url: cleanUrl(input.canonical_url || sourceUrl),
     source_url: sourceUrl,
+    publisher_name: publisherName(sourceUrl),
     discovery_url: cleanUrl(input.discovery_url || (input.url && input.url !== sourceUrl ? input.url : null)),
     source_name: input.source_name || source.name || source.id || 'unknown',
     platform: input.platform || source.platform || 'unknown',
@@ -51,7 +53,7 @@ export function normalizeReport(input, source = {}) {
     fatalities: integerOrNull(input.fatalities),
     verification_status: input.verification_status || 'unverified',
     raw_json: JSON.stringify(input),
-    english_description: input.english_description || englishDescription({ title, content, ...labels, verification_status: input.verification_status || 'unverified' }),
+    english_description: input.english_description || englishDescription({ title, content, ...labels, source_url: sourceUrl, publisher_name: publisherName(sourceUrl), verification_status: input.verification_status || 'unverified' }),
     english_description_source: input.english_description_source || ENGLISH_DESCRIPTION_SOURCE,
     duplicate_of: null,
     review_notes: null,

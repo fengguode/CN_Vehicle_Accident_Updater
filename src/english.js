@@ -16,9 +16,9 @@ export function englishDescription({ title, content, brand, cause, verification_
   const causePhrase = causes[cause] || 'an unclassified cause';
   const model = arguments[0]?.model && ascii(arguments[0].model) ? ` (${arguments[0].model})` : '';
   const severityPhrase = severity[arguments[0]?.severity];
-  const source = arguments[0]?.source_name && ascii(arguments[0].source_name) ? ` Source: ${arguments[0].source_name}.` : '';
+  const publisher = arguments[0]?.publisher_name && ascii(arguments[0].publisher_name) ? ` Source: ${arguments[0].publisher_name}.` : (arguments[0]?.source_url?.includes('news.google.com') ? ' Original publisher URL unresolved; discovery reference retained.' : ' Original publisher unspecified.');
   const date = String(arguments[0]?.event_date || arguments[0]?.published_at || '').slice(0, 10);
-  return `${status} involving ${subject}${model} on ${place}, categorized as ${causePhrase}. ${modes[arguments[0]?.adas_mode] || modes.unknown}${severityPhrase ? ` Coded outcome: ${severityPhrase}.` : ''}${date ? ` Report date: ${date}.` : ''}${source}`;
+  return `${status} involving ${subject}${model} on ${place}, categorized as ${causePhrase}. ${modes[arguments[0]?.adas_mode] || modes.unknown}${severityPhrase ? ` Coded outcome: ${severityPhrase}.` : ''}${date ? ` Report date: ${date}.` : ''}${publisher}`;
 }
 
 export async function translateDescription(text, options = {}) {

@@ -75,6 +75,7 @@ export function migrate(db) {
     'ALTER TABLE reports ADD COLUMN discovery_url TEXT',
     'ALTER TABLE reports ADD COLUMN english_description TEXT',
     "ALTER TABLE reports ADD COLUMN english_description_source TEXT"
+    , 'ALTER TABLE reports ADD COLUMN publisher_name TEXT'
   ]) { try { db.exec(statement); } catch (error) { if (!/duplicate column name/i.test(error.message)) throw error; } }
 }
 

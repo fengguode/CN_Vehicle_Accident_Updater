@@ -4,6 +4,15 @@ export function isGoogleNewsWrapper(value) {
   try { const url = new URL(value); return GOOGLE_NEWS_HOSTS.has(url.hostname) && url.pathname.startsWith('/rss/'); } catch { return false; }
 }
 
+export function publisherName(url) {
+  try {
+    if (isGoogleNewsWrapper(url)) return null;
+    const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+    const known = { 'thepaper.cn': 'The Paper', 'sohu.com': 'Sohu', '163.com': 'NetEase', 'qq.com': 'Tencent', 'yicai.com': 'Yicai', 'caixin.com': 'Caixin', 'ithome.com': 'ITHome' };
+    return known[host] || host;
+  } catch { return null; }
+}
+
 export function extractGoogleArticleParams(html) {
   const get = (name) => { const match = html.match(new RegExp(`data-${name}=["']([^"']+)["']`, 'i')); return match?.[1] || null; };
   const id = get('n-a-id'); const timestamp = get('n-a-ts'); const signature = get('n-a-sg');
