@@ -30,7 +30,7 @@ export function classify(input) {
   const mode = scoreMap(text, taxonomy.adasModes, 'unknown');
   const province = taxonomy.provinces.find((name) => normalized(text).includes(normalized(name))) || null;
   const adasTerms = ['辅助驾驶', '智能驾驶', '自动驾驶', 'adas', 'autopilot', 'fsd', 'noa', 'nop', 'ngp', '智驾'];
-  const accidentTerms = ['事故', '车祸', '碰撞', '撞', '追尾', '失控', '伤亡', '险情'];
+  const accidentTerms = ['事故', '车祸', '碰撞', '撞', '追尾', '追撞', '撞车', '失控', '伤亡', '险情'];
   const hasAdas = adasTerms.some((x) => normalized(text).includes(x));
   const hasAccident = accidentTerms.some((x) => normalized(text).includes(x));
   const relevanceScore = Number(((hasAdas ? 0.55 : 0) + (hasAccident ? 0.35 : 0) + (brand.hits.length ? 0.1 : 0)).toFixed(2));

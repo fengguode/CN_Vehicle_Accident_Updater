@@ -16,3 +16,12 @@ test('Weibo web-index source filters, caps, resolves, and rejects non-Weibo URLs
     assert.equal(rows[0].discovery_url, 'https://news.google.com/rss/articles/A');
   } finally { globalThis.fetch = originalFetch; }
 });
+
+test('Weibo keyword gate accepts 追撞 phrasing', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response('<rss><channel><item><title>ACC辅助驾驶追撞致3人死亡 - 微博</title><link>https://news.google.com/rss/articles/A</link><description>公开线索</description></item></channel></rss>');
+  try {
+    const rows = await collectRss({ keyword_groups: [['辅助驾驶'], ['追撞']], max_resolve_candidates: 1, require_resolved: true, allowed_hosts: ['weibo.com'], url: 'https://example.test/rss' }, { resolve: async (url) => ({ source_url: 'https://weibo.com/u/acc', discovery_url: url, resolved: true }) });
+    assert.equal(rows.length, 1);
+  } finally { globalThis.fetch = originalFetch; }
+});
