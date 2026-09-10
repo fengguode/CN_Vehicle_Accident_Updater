@@ -21,6 +21,28 @@ export function englishDescription({ title, content, brand, cause, verification_
   return `${status} involving ${subject}${model} on ${place}, categorized as ${causePhrase}. ${modes[arguments[0]?.adas_mode] || modes.unknown}${severityPhrase ? ` Coded outcome: ${severityPhrase}.` : ''}${date ? ` Report date: ${date}.` : ''}${publisher}`;
 }
 
+const brandNames = { 理想: 'Li Auto', 理想汽车: 'Li Auto', 小米: 'Xiaomi', 小鹏: 'XPeng', 华为: 'Huawei', 问界: 'AITO', 特斯拉: 'Tesla', 比亚迪: 'BYD', 岚图: 'Voyah', 吉利: 'Geely', 尊界: 'Maextro', 蔚来: 'NIO', 智己: 'IM Motors', 极氪: 'Zeekr' };
+const titleTerms = [
+  [/辅助驾驶|智驾|领航辅助|自动驾驶/, 'driver-assistance'],
+  [/追尾|追撞/, 'rear-end collision'],
+  [/碰撞|撞车|车祸|事故/, 'crash/incident'],
+  [/失控|偏航|偏移/, 'loss-of-control event'],
+  [/险情|差点|避免事故/, 'near miss'],
+  [/受伤|伤亡|死亡/, 'injury/fatality report'],
+  [/AEB|自动紧急制动/, 'AEB event']
+];
+
+/** English title stored in the JSON publication; original Chinese title remains in `title`. */
+export function englishTitle({ title = '', brand, model, cause, severity }) {
+  const text = String(title);
+  if (ascii(text) && text.trim()) return text.trim();
+  const brandText = Object.entries(brandNames).find(([key]) => text.includes(key))?.[1] || (brand && brand !== 'Unknown' ? brand : 'Vehicle');
+  const modelText = model && ascii(model) ? ` ${model}` : '';
+  const term = titleTerms.find(([pattern]) => pattern.test(text))?.[1] || 'road-safety report';
+  const outcome = severity === 'fatal' ? ' with a fatal outcome' : severity === 'serious_injury' ? ' involving serious injury' : severity === 'minor_injury' ? ' involving minor injury' : '';
+  return `${brandText}${modelText} ${term}${outcome}`;
+}
+
 export async function translateDescription(text, options = {}) {
   const endpoint = options.endpoint || process.env.ADAS_TRANSLATION_ENDPOINT;
   if (!endpoint) return null;
