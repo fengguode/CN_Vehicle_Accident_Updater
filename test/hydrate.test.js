@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { openDb } from '../src/db.js';
+import { openDb, recoverStaleRuns } from '../src/db.js';
 import { hydratePublicData } from '../src/hydrate.js';
 
 test('hydrates public records with stable IDs and no raw secrets', () => {
@@ -19,5 +19,14 @@ test('hydrates public records with stable IDs and no raw secrets', () => {
   fs.writeFileSync(file, JSON.stringify([{ id: 77, fingerprint: 'fp-77', source_name: 'test', title: '更新线索', verification_status: 'human_verified' }]));
   assert.deepEqual(hydratePublicData(file, db), { records: 1, inserted: 0, updated: 1 });
   assert.equal(db.prepare('SELECT title,verification_status FROM reports WHERE id=77').get().title, '更新线索');
+  db.close();
+});
+
+test('recovers stale running collection runs on startup', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'adas-stale-'));
+  const db = openDb(path.join(dir, 'state.db'));
+  db.prepare("INSERT INTO runs (started_at,status) VALUES (?, 'running')").run(new Date(Date.now() - 10 * 60 * 1000).toISOString());
+  assert.equal(recoverStaleRuns(db), 1);
+  assert.equal(db.prepare('SELECT status FROM runs ORDER BY id DESC LIMIT 1').get().status, 'aborted');
   db.close();
 });

@@ -31,18 +31,23 @@ function allowedHost(url, hosts = []) {
 }
 
 export async function collectRss(source, options = {}) {
-  const response = await fetch(source.url, { headers: { 'user-agent': 'ChinaADASAccidentMonitor/0.1 (+local-research)' }, signal: AbortSignal.timeout(20000) });
+  const response = await fetch(source.url, { headers: { 'user-agent': 'ChinaADASAccidentMonitor/0.1 (+local-research)' }, signal: AbortSignal.timeout(source.fetch_timeout_ms || 15000) });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const items = parseRss(await response.text()).filter((item) => matchesKeywordGroups(item, source.keyword_groups || []));
-  const candidates = items.slice(0, Number(source.max_resolve_candidates || items.length));
-  const resolved = [];
+  const candidates = items.slice(0, Number(source.max_resolve_candidates || 20));
   const resolver = options.resolve || resolvePublicSource;
-  for (const item of candidates) {
-    const result = await resolver(item.url, options);
+  const timeoutMs = source.resolve_timeout_ms || options.timeoutMs || 8000;
+  const concurrency = Math.max(1, Math.min(4, Number(source.resolve_concurrency || 4)));
+  const results = new Array(candidates.length); let next = 0;
+  async function worker() { while (true) { const index = next++; if (index >= candidates.length) return; const item = candidates[index]; results[index] = { item, result: await resolver(item.url, { ...options, timeoutMs }) }; } }
+  await Promise.all(Array.from({ length: Math.min(concurrency, candidates.length) }, worker));
+  const resolved = [];
+  for (const { item, result } of results) {
+    if (isGoogleNewsWrapper(item.url) && (!result.resolved || !result.source_url || isGoogleNewsWrapper(result.source_url))) continue;
     if (source.require_resolved && (!result.resolved || !result.source_url || result.source_url === item.url)) continue;
     if (source.allowed_hosts?.length && !allowedHost(result.source_url, source.allowed_hosts)) continue;
     resolved.push({ ...item, ...result, discovery_url: result.discovery_url || item.url });
   }
   return resolved;
 }
-import { resolvePublicSource } from './provenance.js';
+import { resolvePublicSource, isGoogleNewsWrapper } from './provenance.js';

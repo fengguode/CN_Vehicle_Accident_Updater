@@ -9,7 +9,14 @@ export function openDb(file = dbPath) {
   const db = new DatabaseSync(file);
   db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;');
   migrate(db);
+  recoverStaleRuns(db);
   return db;
+}
+
+export function recoverStaleRuns(db, maxAgeMs = 5 * 60 * 1000) {
+  const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
+  return db.prepare("UPDATE runs SET status='aborted', finished_at=?, errors=? WHERE status='running' AND started_at < ?")
+    .run(new Date().toISOString(), JSON.stringify([{ error: 'stale run recovered at database startup' }]), cutoff).changes;
 }
 
 export function migrate(db) {
