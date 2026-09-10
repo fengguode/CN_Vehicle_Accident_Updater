@@ -20,5 +20,5 @@ test('classifies Taiwan Volvo ACC rear-impact article wording', () => {
 test('classifies Li Auto owner report with lane drift and delayed intervention', () => {
   const value = classify({ title: '理想车主启用辅助驾驶撞车索赔被认定全责', content: '四川车辆左偏越实线，撞上对向车后视镜，驾驶员未及时干预' });
   assert.equal(value.brand, 'Li Auto'); assert.equal(value.province, '四川'); assert.equal(value.adas_mode, 'active');
-  assert.equal(value.cause, 'lane_or_steering'); assert.match(value.labels_json, /未及时干预/);
+  assert.equal(value.cause, 'lane_or_steering'); assert.match(value.labels_json, /driver_misuse_or_inattention/);
 });
