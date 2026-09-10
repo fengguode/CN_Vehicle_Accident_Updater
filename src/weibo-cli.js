@@ -7,10 +7,14 @@ import { readJson } from './config.js';
 const execFileAsync = promisify(execFile);
 const DEFAULT_TIMEOUT_MS = 30000;
 const DEFAULT_MAX_BUFFER = 2 * 1024 * 1024;
-export const DEFAULT_ARGS = ['search', 'statuses/limited', '--q', '{query}', '--output', 'json'];
+export const DEFAULT_ARGS = ['search', 'statuses/limited', '--q', '{query}', '--type', '1', '--count', '{limit}', '--sort', 'time', '--dup', '1', '--antispam', '1', '--starttime', '{since_epoch}', '--endtime', '{end_epoch}', '--output', 'json'];
 
 function executableCandidates() { return process.env.WEIBO_CLI_PATH ? [process.env.WEIBO_CLI_PATH] : (process.platform === 'win32' ? ['weibo.cmd', 'weibo.exe', 'weibo'] : ['weibo']); }
-function replaceTokens(value, tokens) { return String(value).replace(/\{(query|since|cursor|limit)\}/g, (_, key) => tokens[key] ?? ''); }
+function replaceTokens(value, tokens) { return String(value).replace(/\{(query|since|since_epoch|cursor|limit)\}/g, (_, key) => tokens[key] ?? ''); }
+function sanitizeQuery(query) {
+  if (/[{}“”‘’「」『』]/.test(query)) throw new Error('Weibo query contains forbidden braces or Chinese quote characters');
+  return query;
+}
 
 export function parseCliOutput(stdout) {
   const text = String(stdout || '').trim(); if (!text) return { items: [], nextCursor: null };
@@ -64,10 +68,11 @@ export async function collectWeiboCli(source = {}, options = {}) {
   const template = typeof configured === 'string' ? JSON.parse(configured) : configured;
   if (!Array.isArray(template) || !template.length) throw new Error('weibo-cli args must be a non-empty JSON array');
   const packs = source.query_packs || readJson('config/weibo-query-packs.json').packs; const state = options.state || {};
-  const since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(); const cursor = state.cursor || null; const items = []; let nextCursor = cursor;
+  const sinceDate = new Date(Date.now() - 48 * 60 * 60 * 1000); const since = sinceDate.toISOString(); const sinceEpoch = Math.floor(sinceDate.getTime() / 1000); const endEpoch = Math.floor(Date.now() / 1000); const cursor = state.cursor || null; const items = []; let nextCursor = cursor;
   for (const pack of packs) {
-    const query = pack.terms.map((term) => `(${term})`).join(' AND ');
-    const args = template.map((arg) => replaceTokens(arg, { query, since, cursor: cursor || '', limit: source.limit || 100 }));
+    const query = sanitizeQuery(pack.terms.map((term) => `(${term})`).join(' AND '));
+    const limit = Math.max(10, Math.min(50, Number(source.limit || 50)));
+    const args = template.map((arg) => replaceTokens(arg, { query, since, since_epoch: sinceEpoch, end_epoch: endEpoch, cursor: cursor || '', limit }));
     const result = parseCliOutput((await run(process.env.WEIBO_CLI_PATH || executableCandidates()[0], args, options)).stdout);
     items.push(...result.items.map((item) => normalizeWeiboItem(item, pack))); if (result.nextCursor) nextCursor = result.nextCursor;
     if (source.delay_ms || options.delayMs) await new Promise((resolve) => setTimeout(resolve, Number(source.delay_ms || options.delayMs)));

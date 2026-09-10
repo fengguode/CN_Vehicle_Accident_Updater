@@ -29,3 +29,20 @@ test('validated default action is discoverable while source remains opt-in', () 
   assert.equal(diagnostic.available, true);
   assert.equal(diagnostic.auth, false);
 });
+
+test('default action includes documented bounded search controls and epoch overlap', async () => {
+  let args;
+  await collectWeiboCli({ query_packs: [{ name: 'fixture', terms: ['辅助驾驶', '事故'] }], delay_ms: 0 }, { runner: async (_exe, argv) => { args = argv; return { stdout: JSON.stringify(fixture) }; } });
+  assert.ok(args.includes('--type') && args.includes('1'));
+  assert.ok(args.includes('--sort') && args.includes('time'));
+  assert.ok(args.includes('--dup') && args.includes('1'));
+  assert.ok(args.includes('--antispam') && args.includes('1'));
+  assert.ok(args.includes('--starttime'));
+  const count = Number(args[args.indexOf('--count') + 1]);
+  assert.ok(count >= 10 && count <= 50);
+  assert.match(args[args.indexOf('--starttime') + 1], /^\d+$/);
+});
+
+test('rejects forbidden query syntax before invoking the CLI', async () => {
+  await assert.rejects(() => collectWeiboCli({ query_packs: [{ terms: ['事故{'] }], delay_ms: 0 }, { runner: async () => ({ stdout: JSON.stringify(fixture) }) }), /forbidden braces/);
+});
