@@ -13,6 +13,7 @@
     "publish": "node src/publish.js",
     "hydrate": "node src/cli.js hydrate",
     "backfill": "node src/cli.js backfill",
+    "weibo-backfill": "node src/cli.js weibo-backfill",
     "stats": "node src/cli.js stats",
     "test": "node --test"
   },

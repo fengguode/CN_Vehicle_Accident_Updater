@@ -5,6 +5,7 @@ import { runCollection } from './pipeline.js';
 import { dataDir, ensureDirectories } from './config.js';
 import { hydratePublicData } from './hydrate.js';
 import { backfillReports } from './backfill.js';
+import { runWeiboWebBackfill } from './weibo-backfill.js';
 
 const command = process.argv[2] || 'help';
 
@@ -37,6 +38,8 @@ if (command === 'init') {
   const db = openDb();
   console.log(JSON.stringify(await backfillReports({ db, offline: process.argv.includes('--offline') }), null, 2));
   db.close();
+} else if (command === 'weibo-backfill') {
+  console.log(JSON.stringify(await runWeiboWebBackfill({ maxResults: process.argv[3] || 50 }), null, 2));
 } else {
-  console.log('Usage: npm run init | collect | import | serve | export | stats | hydrate | backfill [--offline]');
+  console.log('Usage: npm run init | collect | import | serve | export | stats | hydrate | backfill [--offline] | weibo-backfill [maxResults]');
 }

@@ -1,0 +1,11 @@
+{
+  "accident_terms": ["事故", "碰撞", "追尾", "追撞", "撞车", "失控", "伤亡", "险情"],
+  "packs": [
+    {"name": "assisted-driving", "adas_terms": ["辅助驾驶", "智能驾驶", "自动驾驶", "智驾"], "brand_terms": []},
+    {"name": "noa-ngp", "adas_terms": ["NOA", "NGP", "ACC", "AEB"], "brand_terms": []},
+    {"name": "tesla-xpeng", "adas_terms": ["辅助驾驶", "智驾", "NOA", "NGP"], "brand_terms": ["特斯拉", "小鹏"]},
+    {"name": "li-byd-nio", "adas_terms": ["辅助驾驶", "智驾", "NOA", "ACC"], "brand_terms": ["理想", "比亚迪", "蔚来"]},
+    {"name": "huawei-aito", "adas_terms": ["辅助驾驶", "智驾", "AEB"], "brand_terms": ["问界", "华为", "鸿蒙智行"]},
+    {"name": "volvo-geely", "adas_terms": ["辅助驾驶", "智驾", "ACC", "AEB"], "brand_terms": ["沃尔沃", "吉利", "极氪"]}
+  ]
+}

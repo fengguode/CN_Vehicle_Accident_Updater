@@ -106,6 +106,8 @@ Resolved Weibo links can optionally receive conservative article/status enrichme
 
 RSS resolution is bounded to 20 candidates per enabled feed, up to four concurrent public requests, and an 8-second resolution timeout by default. Google News wrappers that cannot resolve are discarded for every RSS source, so the primary `source_url` never remains an unresolved Google wrapper. A process interrupted during collection is recovered as an `aborted` run on the next database startup.
 
+For a bounded no-cost bulk refresh, run `npm run weibo-backfill` (optionally `npm run weibo-backfill -- 50`). It executes the configured ADAS/brand query packs through Google News RSS, resolves only direct `weibo.com` URLs, deduplicates them, sorts newest first, and imports at most 50 records through the normal normalization/database path. It does not scrape Weibo search or bypass login. Coverage is limited by Google News indexing, wrapper resolution, query caps, deletions, and rate limits.
+
 ## Publish the public repository
 
 After collection or review, publish a sanitized JSON snapshot and static HTML page into the sibling public repository:
