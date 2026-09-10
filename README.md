@@ -102,6 +102,8 @@ The feature-flagged `weibo-cli` source is disabled until the official `@weibo-ai
 
 The enabled `google-news-weibo-web` source is a no-cost web-index discovery path, not a Weibo scraper. It queries Google News RSS for `site:weibo.com`, prefilters for at least one ADAS term and one incident term, resolves at most 20 public wrappers, and accepts only successfully resolved `weibo.com` subdomains. Unresolved wrappers are discarded for this source; resolved records retain the Google discovery URL separately. It does not fetch Weibo pages directly, bypass login, or override robots restrictions.
 
+Resolved Weibo links can optionally receive conservative article/status enrichment before classification. Set `WEIBO_WEB_COOKIE_FILE` (preferred) or `WEIBO_WEB_COOKIE` only from an authorized session; credentials are sent solely to allowed `*.weibo.com` hosts, never logged or stored in records, and `.secrets/` is ignored. Enrichment is capped at five items per run with a one-second delay, stops on visitor/login walls, CAPTCHA, 401/403/429, redirects, or timeouts, and otherwise leaves the discovery record unchanged. For scheduled GitHub Actions, consider a short-lived `WEIBO_WEB_COOKIE` secret only if account policy permits; a local cookie file is safer and no database-repository workflow change is made by this adapter.
+
 RSS resolution is bounded to 20 candidates per enabled feed, up to four concurrent public requests, and an 8-second resolution timeout by default. Google News wrappers that cannot resolve are discarded for every RSS source, so the primary `source_url` never remains an unresolved Google wrapper. A process interrupted during collection is recovered as an `aborted` run on the next database startup.
 
 ## Publish the public repository

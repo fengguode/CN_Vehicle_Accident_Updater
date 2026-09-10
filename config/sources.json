@@ -60,6 +60,10 @@
       "max_resolve_candidates": 20,
       "require_resolved": true,
       "allowed_hosts": ["weibo.com"],
+      "enrich_weibo_web": true,
+      "max_enrichments": 5,
+      "enrich_delay_ms": 1000,
+      "enrich_timeout_ms": 10000,
       "notes": "No-cost public discovery only. Resolves at most 20 keyword-matching Google wrappers and stores only successfully resolved Weibo hosts; never bypasses Weibo login or robots controls."
     },
     {

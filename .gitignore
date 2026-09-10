@@ -3,5 +3,6 @@ data/*.db-*
 data/exports/
 data/inbox/*.processed
 .env
+.secrets/
 node_modules/
 coverage/

@@ -6,6 +6,7 @@ import { inboxFiles, readJsonl } from './importer.js';
 import { normalizeReport } from './normalize.js';
 import { translateDescription } from './english.js';
 import { collectWeiboCli } from './weibo-cli.js';
+import { enrichWeiboItems } from './weibo-web.js';
 
 export async function runCollection(options = {}) {
   const db = options.db || openDb();
@@ -26,6 +27,7 @@ export async function runCollection(options = {}) {
         const result = await collectWeiboCli({ ...source, query_packs: queryPacks }, { state: prior?.state_json ? JSON.parse(prior.state_json) : {} });
         items = result.items; adapterState = JSON.stringify({ cursor: result.nextCursor, overlap_since: result.overlapSince });
       }
+      if (source.enrich_weibo_web && items.length) items = (await enrichWeiboItems(items, { maxItems: source.max_enrichments || 5, delayMs: source.enrich_delay_ms, timeoutMs: source.enrich_timeout_ms })).items;
       stats.fetched += items.length;
       for (const item of items) {
         const report = normalizeReport(item, source);
