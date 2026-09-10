@@ -1,0 +1,4 @@
+interface:
+  display_name: "China ADAS Social Collector"
+  short_description: "Collect auditable China ADAS incident leads"
+  default_prompt: "Use $china-adas-social-collector to collect direct-source China ADAS accident reports."

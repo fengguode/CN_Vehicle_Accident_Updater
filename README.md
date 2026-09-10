@@ -80,6 +80,8 @@ Add discovery feeds in `config/sources.json`. For authorized APIs, implement a c
 
 The keyword taxonomy is in `config/taxonomy.json`; changes apply to newly ingested items. For historical relabeling, add a reviewed migration rather than silently rewriting past classifications.
 
+For repeatable browser-assisted social discovery, this repository also contains the versioned `skills/china-adas-social-collector` Codex skill. It defines direct-source, evidence, privacy, English-summary, and JSONL-import rules. Install it into the user's Codex skills directory together with the official Playwright skill before using authenticated browser collection.
+
 ## Commands
 
 ```text
