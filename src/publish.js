@@ -15,7 +15,7 @@ const db = openDb();
 const rows = db.prepare('SELECT * FROM reports ORDER BY COALESCE(published_at,collected_at) DESC, id DESC').all();
 const reports = rows.map((row) => ({
   id: row.id, fingerprint: row.fingerprint, source_url: row.source_url, discovery_url: row.discovery_url, publisher_name: row.publisher_name, source_name: row.source_name,
-  platform: row.platform, title: row.title, title_zh: row.title, title_en: row.title_en || englishTitle(row), title_zh_short: abstract(row.title, 140), title_en_short: abstract(row.title_en || englishTitle(row), 140), content: row.content, content_zh: row.content, content_en: row.content_en || row.english_description || englishDescription(row), summary_zh: abstract(`${row.title || ''}. ${row.content || ''}`), summary_en: abstract(row.content_en || row.english_description || englishDescription(row)), author: row.author,
+  platform: row.platform, title: row.title, title_zh: row.title, title_en: row.title_en || englishTitle(row), title_zh_short: abstract(row.title, 140), title_en_short: abstract(row.title_en || englishTitle(row), 140), content: row.content, content_zh: row.content, content_en: row.content_en || row.english_description || englishDescription(row), summary_zh: abstract(row.content), summary_en: abstract(row.content_en || row.english_description || englishDescription(row)), author: row.author,
   published_at: row.published_at, collected_at: row.collected_at, event_date: row.event_date,
   brand: row.brand, model: row.model, cause: row.cause, cause_confidence: row.cause_confidence,
   adas_mode: row.adas_mode, road_type: row.road_type, severity: row.severity,
@@ -36,7 +36,9 @@ fs.writeFileSync(path.join(outputDir, 'metadata.json'), JSON.stringify(metadata,
 
 function esc(value) { return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
 function abstract(value, limit = 280) {
-  const text = String(value || '').replace(/\s+/g, ' ').replace(/^c\s+/i, '').replace(/^[^#]{0,160}(?=#)/, '').trim();
+  let text = String(value || '').replace(/\s+/g, ' ').replace(/^c\s+/i, '').replace(/^[^#]{0,160}(?=#)/, '').replace(/\s+(?:播放视频|Play video|https?:\/\/).*/i, '').trim();
+  const marker = text.search(/多亏|辅助驾驶|智驾|AEB|自动驾驶|事故|追尾|碰撞|险情|driver[- ]assistance|smart driving|automatic emergency braking|rear-end collision|crash|accident|thanks to/i);
+  if (marker > 0 && marker < 180) text = text.slice(marker).trim();
   if (!text) return '';
   const sentences = text.match(/[^.!?。！？]+[.!?。！？]?/g) || [text];
   let result = '';
