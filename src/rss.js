@@ -21,12 +21,28 @@ export function parseRss(xml) {
   })).filter((item) => item.title && item.url);
 }
 
-export async function collectRss(source) {
+function matchesKeywordGroups(item, groups = []) {
+  const text = `${item.title || ''} ${item.content || ''}`.toLocaleLowerCase('zh-CN');
+  return groups.every((group) => group.some((term) => text.includes(String(term).toLocaleLowerCase('zh-CN'))));
+}
+
+function allowedHost(url, hosts = []) {
+  try { const hostname = new URL(url).hostname.toLowerCase(); return hosts.some((host) => hostname === host || hostname.endsWith(`.${host}`)); } catch { return false; }
+}
+
+export async function collectRss(source, options = {}) {
   const response = await fetch(source.url, { headers: { 'user-agent': 'ChinaADASAccidentMonitor/0.1 (+local-research)' }, signal: AbortSignal.timeout(20000) });
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const items = parseRss(await response.text());
+  const items = parseRss(await response.text()).filter((item) => matchesKeywordGroups(item, source.keyword_groups || []));
+  const candidates = items.slice(0, Number(source.max_resolve_candidates || items.length));
   const resolved = [];
-  for (const item of items) resolved.push({ ...item, ...(await resolvePublicSource(item.url)) });
+  const resolver = options.resolve || resolvePublicSource;
+  for (const item of candidates) {
+    const result = await resolver(item.url, options);
+    if (source.require_resolved && (!result.resolved || !result.source_url || result.source_url === item.url)) continue;
+    if (source.allowed_hosts?.length && !allowedHost(result.source_url, source.allowed_hosts)) continue;
+    resolved.push({ ...item, ...result, discovery_url: result.discovery_url || item.url });
+  }
   return resolved;
 }
 import { resolvePublicSource } from './provenance.js';

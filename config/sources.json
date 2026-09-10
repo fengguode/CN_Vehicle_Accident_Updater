@@ -6,7 +6,6 @@
       "type": "rss-search",
       "enabled": false,
       "platform": "weibo",
-      "args": ["search", "statuses/limited", "--q", "{query}", "--type", "1", "--count", "{limit}", "--sort", "time", "--dup", "1", "--antispam", "1", "--starttime", "{since_epoch}", "--endtime", "{end_epoch}", "--output", "json"],
       "url": "https://www.bing.com/search?format=rss&setlang=zh-cn&q=site%3Aweibo.com+%E8%BE%85%E5%8A%A9%E9%A9%BE%E9%A9%B6+%E4%BA%8B%E6%95%85",
       "notes": "Discovery feed. The original linked page is retained as provenance."
     },
@@ -45,6 +44,19 @@
       "platform": "news_index",
       "url": "https://news.google.com/rss/search?q=%E6%99%BA%E9%A9%BE%20%28%E4%BA%8B%E6%95%85%20OR%20%E7%A2%B0%E6%92%9E%20OR%20%E5%A4%B1%E6%8E%A7%29&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
       "notes": "Broad Chinese smart-driving incident discovery."
+    },
+    {
+      "id": "google-news-weibo-web",
+      "name": "Google News: public Weibo accident discovery",
+      "type": "rss-search",
+      "enabled": true,
+      "platform": "weibo_web_index",
+      "url": "https://news.google.com/rss/search?q=site%3Aweibo.com%20%28%E8%BE%85%E5%8A%A9%E9%A9%BE%E9%A9%B6%20OR%20%E6%99%BA%E9%A9%BE%20OR%20NOA%20OR%20NGP%29%20%28%E4%BA%8B%E6%95%85%20OR%20%E7%A2%B0%E6%92%9E%20OR%20%E8%BF%BD%E5%B0%BE%20OR%20%E5%A4%B1%E6%8E%A7%29&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+      "keyword_groups": [["辅助驾驶", "智能驾驶", "智驾", "自动驾驶", "ADAS", "NOA", "NGP"], ["事故", "碰撞", "追尾", "失控", "伤亡"]],
+      "max_resolve_candidates": 20,
+      "require_resolved": true,
+      "allowed_hosts": ["weibo.com"],
+      "notes": "No-cost public discovery only. Resolves at most 20 keyword-matching Google wrappers and stores only successfully resolved Weibo hosts; never bypasses Weibo login or robots controls."
     },
     {
       "id": "manual-platform-exports",
