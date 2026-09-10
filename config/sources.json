@@ -6,6 +6,7 @@
       "type": "rss-search",
       "enabled": false,
       "platform": "weibo",
+      "args": ["search", "statuses/limited", "--q", "{query}", "--output", "json"],
       "url": "https://www.bing.com/search?format=rss&setlang=zh-cn&q=site%3Aweibo.com+%E8%BE%85%E5%8A%A9%E9%A9%BE%E9%A9%B6+%E4%BA%8B%E6%95%85",
       "notes": "Discovery feed. The original linked page is retained as provenance."
     },

@@ -23,8 +23,9 @@ test('collector uses configured argument template and query packs without shell 
   assert.match(calls[0].args[calls[0].args.indexOf('--query') + 1], /辅助驾驶/);
 });
 
-test('adapter remains unavailable until args are explicitly configured', () => {
+test('validated default action is discoverable while source remains opt-in', () => {
   const diagnostic = diagnoseWeiboCli({});
-  assert.equal(diagnostic.configured, false);
-  assert.equal(diagnostic.available, false);
+  assert.equal(diagnostic.configured, true);
+  assert.equal(diagnostic.available, true);
+  assert.equal(diagnostic.auth, false);
 });
