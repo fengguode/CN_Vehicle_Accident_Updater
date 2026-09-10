@@ -11,6 +11,7 @@
     "serve": "node src/server.js",
     "export": "node src/cli.js export",
     "publish": "node src/publish.js",
+    "translate": "node src/translate-content.js",
     "hydrate": "node src/cli.js hydrate",
     "backfill": "node src/cli.js backfill",
     "weibo-backfill": "node src/cli.js weibo-backfill",
