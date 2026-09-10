@@ -96,6 +96,10 @@ npm test          Run unit tests
 
 `npm run backfill` resolves public Google News wrapper URLs one at a time with a short delay, preserves each wrapper in `discovery_url`, and fills conservative `machine_heuristic_v1` English descriptions. Use `npm run backfill -- --offline` to generate descriptions without network requests. Resolution only follows publicly available redirects/metadata and never bypasses login or access controls.
 
+### Optional Weibo CLI adapter
+
+The feature-flagged `weibo-cli` source is disabled until the official `@weibo-ai/weibo-cli` installation is authenticated and its search action is validated. It intentionally does not assume an undocumented platform command. Configure `WEIBO_CLI_PATH` when the executable is not on `PATH`, `WEIBO_CLI_TOKEN` or `WEIBO_CLI_REFRESH_TOKEN` for unattended auth, and `WEIBO_CLI_ARGS_JSON` as a JSON argument array using `{query}`, `{since}`, `{cursor}`, and `{limit}` placeholders. Run the configured capability probe first, then enable the source in `config/sources.json`. Query packs require ADAS and incident terms; the adapter uses a 48-hour overlap and stores a cursor in SQLite source state. Never commit tokens; use environment secrets or the scheduler's secret store.
+
 ## Publish the public repository
 
 After collection or review, publish a sanitized JSON snapshot and static HTML page into the sibling public repository:

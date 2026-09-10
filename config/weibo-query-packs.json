@@ -1,0 +1,6 @@
+{
+  "packs": [
+    {"name": "ADAS + collision", "terms": ["(辅助驾驶 OR 智能驾驶 OR 自动驾驶 OR ADAS OR NOA OR NGP)", "(事故 OR 碰撞 OR 追尾 OR 失控 OR 伤亡)"]},
+    {"name": "ADAS + safety event", "terms": ["(辅助驾驶 OR 智驾 OR autopilot OR FSD)", "(险情 OR 车祸 OR 撞车 OR 接管)"]}
+  ]
+}

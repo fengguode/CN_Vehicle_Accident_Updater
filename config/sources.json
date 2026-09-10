@@ -52,6 +52,15 @@
       "enabled": true,
       "platform": "manual_export",
       "path": "data/inbox"
+    },
+    {
+      "id": "weibo-cli",
+      "name": "Weibo official CLI (authenticated, opt-in)",
+      "type": "weibo-cli",
+      "enabled": false,
+      "platform": "weibo",
+      "query_packs": "config/weibo-query-packs.json",
+      "notes": "Disabled until an authenticated @weibo-ai/weibo-cli action is validated. Configure args explicitly; no undocumented command is assumed."
     }
   ]
 }
