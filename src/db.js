@@ -77,6 +77,14 @@ export function migrate(db) {
       last_item_at TEXT,
       updated_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS review_votes (
+      id INTEGER PRIMARY KEY,
+      fingerprint TEXT NOT NULL,
+      vote TEXT NOT NULL CHECK (vote IN ('relevant','not_relevant')),
+      voter_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE (fingerprint, voter_id)
+    );
   `);
   for (const statement of [
     'ALTER TABLE reports ADD COLUMN discovery_url TEXT',
