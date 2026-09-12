@@ -1,16 +1,9 @@
 import fs from 'node:fs';
 import { openDb } from './db.js';
+import { saveSvm, trainSvm } from './svm.js';
 
 const file = process.argv[2] || '../china-adas-accident-database/data/votes.json';
-let votes = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
-if (process.env.GITHUB_TOKEN) {
-  const response = await fetch('https://api.github.com/repos/fengguode/CN_Vehicle_Accident_Database/issues?state=all&per_page=100', { headers: { authorization: `Bearer ${process.env.GITHUB_TOKEN}`, accept: 'application/vnd.github+json', 'user-agent': 'CN-ADAS-Updater' } });
-  if (response.ok) {
-    const issues = await response.json();
-    const issueVotes = issues.map(issue => { const body = String(issue.body || ''); const fingerprint = body.match(/fingerprint:\s*([a-f0-9]{64})/i)?.[1]; const vote = body.match(/vote:\s*(relevant|not_relevant)/i)?.[1]; return fingerprint && vote ? { fingerprint, vote, voter_id: `github-issue-${issue.number}`, created_at: issue.created_at } : null; }).filter(Boolean);
-    votes = [...votes, ...issueVotes];
-  }
-}
+const votes = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
 const db = openDb();
 const insert = db.prepare('INSERT INTO review_votes(fingerprint,vote,voter_id,created_at) VALUES(?,?,?,?) ON CONFLICT(fingerprint,voter_id) DO UPDATE SET vote=excluded.vote,created_at=excluded.created_at');
 let accepted = 0;
@@ -30,5 +23,7 @@ for (const row of rows) {
   labels.community_votes = { relevant, not_relevant: notRelevant };
   update.run(JSON.stringify(labels), `Community review votes: ${relevant} relevant, ${notRelevant} not relevant.`, new Date().toISOString(), row.fingerprint);
 }
+const samples = db.prepare(`SELECT r.title, r.content, CASE WHEN SUM(v.vote='relevant') > SUM(v.vote='not_relevant') THEN 1 ELSE -1 END label FROM reports r JOIN review_votes v ON v.fingerprint=r.fingerprint GROUP BY r.fingerprint HAVING COUNT(*) >= 1`).all().map(row => ({ text: `${row.title} ${row.content}`, label: row.label }));
+const model = trainSvm(samples); if (model) saveSvm(model);
 db.close();
-console.log(JSON.stringify({ received: Array.isArray(votes) ? votes.length : 0, accepted, aggregates: rows.length }));
+console.log(JSON.stringify({ received: Array.isArray(votes) ? votes.length : 0, accepted, aggregates: rows.length, svm_samples: model?.samples || 0, svm_trained: Boolean(model) }));

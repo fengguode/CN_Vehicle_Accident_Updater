@@ -7,6 +7,7 @@ import { normalizeReport } from './normalize.js';
 import { translateDescription } from './english.js';
 import { collectWeiboCli } from './weibo-cli.js';
 import { enrichWeiboItems } from './weibo-web.js';
+import { loadSvm, scoreSvm } from './svm.js';
 
 export async function runCollection(options = {}) {
   const db = options.db || openDb();
@@ -14,6 +15,7 @@ export async function runCollection(options = {}) {
   const runId = beginRun(db);
   const stats = { fetched: 0, inserted: 0, duplicates: 0, rejected: 0 };
   const errors = [];
+  const svm = loadSvm();
   const sources = readJson('config/sources.json').sources.filter((source) => source.enabled);
   for (const source of sources) {
     try {
@@ -31,6 +33,8 @@ export async function runCollection(options = {}) {
       stats.fetched += items.length;
       for (const item of items) {
         const report = normalizeReport(item, source);
+        const svmScore = scoreSvm(svm, `${report.title} ${report.content}`);
+        if (svmScore !== null && svmScore < 0) { stats.rejected++; continue; }
         const translated = await translateDescription(`${report.title}. ${report.content}`);
         if (translated) { report.english_description = translated; report.english_description_source = 'configured_translation_endpoint'; }
         if (!report.title || report.relevance_score < 0.55) { stats.rejected++; continue; }

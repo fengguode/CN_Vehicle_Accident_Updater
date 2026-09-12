@@ -3,7 +3,8 @@ main = "wechat-h5-worker.js"
 compatibility_date = "2026-09-11"
 
 [vars]
-FRONTEND_ORIGIN = "https://fengguode.github.io/CN_Vehicle_Accident_Database"
+FRONTEND_ORIGIN = "https://fengguode.github.io"
+FRONTEND_URL = "https://fengguode.github.io/CN_Vehicle_Accident_Database/"
 WECHAT_REDIRECT_URI = "https://YOUR-WORKER-DOMAIN/auth/wechat/callback"
 
 [[d1_databases]]

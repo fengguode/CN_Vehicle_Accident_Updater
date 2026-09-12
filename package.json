@@ -13,6 +13,7 @@
     "publish": "node src/publish.js",
     "translate": "node src/translate-content.js",
     "apply-votes": "node src/apply-votes.js",
+    "train-svm": "node src/apply-votes.js",
     "hydrate": "node src/cli.js hydrate",
     "backfill": "node src/cli.js backfill",
     "weibo-backfill": "node src/cli.js weibo-backfill",

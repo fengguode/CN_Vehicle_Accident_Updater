@@ -9,6 +9,7 @@ A local, auditable research system for collecting public reports of ADAS-related
 - Incrementally ingests public RSS/search results and authorized platform exports. Google News is the enabled fallback discovery index; optional Bing social-domain queries are included but disabled because availability varies by network/region.
 - Keeps the original URL, source, author, publication time, raw record, and collection time.
 - Deduplicates by canonical URL or a stable title/date fingerprint.
+- Trains a lightweight linear SVM boundary from community relevance votes and applies it to future candidates when enough labeled examples exist.
 - Labels brand, likely cause, ADAS engagement claim, province, road context, and severity.
 - Separates `unverified` reports from human-verified records. A report appearing here is **not** a finding that ADAS caused an accident.
 - Provides a local filterable dashboard and JSON exports.
