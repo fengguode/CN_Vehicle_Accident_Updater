@@ -1,4 +1,6 @@
 data/*.db
+data/logs/
+backend/github-wrangler.toml
 data/*.db-*
 data/exports/
 data/inbox/*.processed

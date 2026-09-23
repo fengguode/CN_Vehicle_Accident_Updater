@@ -13,4 +13,5 @@ export function trainSvm(samples, options = {}) {
 }
 export function scoreSvm(model, text) { if (!model) return null; const x = vectorize(text); return Object.entries(x).reduce((sum, [key, value]) => sum + (model.weights[key] || 0) * value, model.bias || 0); }
 export function saveSvm(model) { if (!model) return; fs.mkdirSync(path.dirname(modelPath), { recursive: true }); fs.writeFileSync(modelPath, JSON.stringify(model, null, 2) + '\n'); }
+export function clearSvm() { if (fs.existsSync(modelPath)) fs.unlinkSync(modelPath); }
 export function loadSvm() { try { return JSON.parse(fs.readFileSync(modelPath, 'utf8')); } catch { return null; } }

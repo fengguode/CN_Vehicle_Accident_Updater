@@ -9,6 +9,7 @@
     "collect": "node src/cli.js collect",
     "import": "node src/cli.js import",
     "serve": "node src/server.js",
+    "serve-votes": "node backend/home-vote-server.js",
     "export": "node src/cli.js export",
     "publish": "node src/publish.js",
     "translate": "node src/translate-content.js",
