@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import voteApi from './github-vote-worker.js';
 
 const backendDir = path.dirname(fileURLToPath(import.meta.url));
+const localEnvPath = path.join(backendDir, '..', '.env');
+if (fs.existsSync(localEnvPath)) process.loadEnvFile(localEnvPath);
 const dbPath = path.resolve(process.env.VOTE_DB_PATH || path.join(backendDir, '..', 'data', 'votes.db'));
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 const sqlite = new DatabaseSync(dbPath);

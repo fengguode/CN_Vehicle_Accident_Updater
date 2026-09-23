@@ -11,6 +11,14 @@
 
 The local API can be checked at `http://127.0.0.1:8790/health`. Keep the SQLite file backed up. If the home connection is down, the public report page remains readable but new votes cannot be submitted until it returns.
 
+### Tailscale Funnel on Windows
+
+This is the preferred home-hosting path when no domain is available. A new Tailscale account can be created with the project owner's existing GitHub login. Install Tailscale from its official Windows download page, sign in, and enable Funnel in the Tailscale admin console when prompted. Funnel makes the local vote API publicly reachable over HTTPS; it does **not** make the rest of the computer or the SQLite file public.
+
+With the vote server listening only on `127.0.0.1:8790`, run `tailscale funnel --bg --https=443 http://127.0.0.1:8790` and read its assigned `https://<machine>.<tailnet>.ts.net` URL using `tailscale funnel status`. Set that exact origin as `VOTE_PUBLIC_BASE_URL`, then restart the vote server. Register the GitHub OAuth app callback as `<origin>/auth/github/callback`; set its client ID and secret only in the server environment. Use the same origin for the database repository's `VOTE_API_URL` Actions variable. Keep the export token secret and never put it in the site HTML or repository.
+
+Do not use a random-address quick tunnel for production voting: OAuth callbacks and the published site need a stable origin. If the PC shuts down or Tailscale disconnects, voting pauses until both are running again.
+
 ## Cloudflare deployment (alternative)
 
 Deployment requires a Cloudflare account and a GitHub OAuth app owned by the project operator:
