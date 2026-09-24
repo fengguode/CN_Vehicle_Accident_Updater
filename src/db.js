@@ -7,7 +7,7 @@ export function openDb(file = dbPath) {
   ensureDirectories();
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const db = new DatabaseSync(file);
-  db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON;');
+  db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000;');
   migrate(db);
   recoverStaleRuns(db);
   return db;
@@ -21,6 +21,10 @@ export function recoverStaleRuns(db, maxAgeMs = 5 * 60 * 1000) {
 
 export function migrate(db) {
   db.exec(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      version INTEGER PRIMARY KEY,
+      applied_at TEXT NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS runs (
       id INTEGER PRIMARY KEY,
       started_at TEXT NOT NULL,
@@ -85,6 +89,11 @@ export function migrate(db) {
       created_at TEXT NOT NULL,
       UNIQUE (fingerprint, voter_id)
     );
+    CREATE TABLE IF NOT EXISTS svm_models (
+      id INTEGER PRIMARY KEY, trained_at TEXT NOT NULL,
+      algorithm TEXT NOT NULL, samples INTEGER NOT NULL,
+      weights_json TEXT NOT NULL, bias REAL NOT NULL
+    );
   `);
   for (const statement of [
     'ALTER TABLE reports ADD COLUMN discovery_url TEXT',
@@ -92,9 +101,18 @@ export function migrate(db) {
     "ALTER TABLE reports ADD COLUMN english_description_source TEXT"
     , 'ALTER TABLE reports ADD COLUMN title_en TEXT'
     , 'ALTER TABLE reports ADD COLUMN content_en TEXT'
+    , 'ALTER TABLE reports ADD COLUMN title_zh_short TEXT'
+    , 'ALTER TABLE reports ADD COLUMN title_en_short TEXT'
+    , 'ALTER TABLE reports ADD COLUMN summary_zh TEXT'
+    , 'ALTER TABLE reports ADD COLUMN summary_en TEXT'
+    , 'ALTER TABLE reports ADD COLUMN svm_score REAL'
+    , 'ALTER TABLE reports ADD COLUMN svm_model_id INTEGER'
     , 'ALTER TABLE reports ADD COLUMN publisher_name TEXT'
     , 'ALTER TABLE source_state ADD COLUMN state_json TEXT'
   ]) { try { db.exec(statement); } catch (error) { if (!/duplicate column name/i.test(error.message)) throw error; } }
+  db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(1,?)').run(new Date().toISOString());
+  db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(3,?)').run(new Date().toISOString());
+  db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,?)').run(new Date().toISOString());
 }
 
 export function beginRun(db) {
@@ -108,6 +126,7 @@ export function finishRun(db, id, stats, errors = []) {
 }
 
 export function insertReport(db, report) {
+  if (report.canonical_url && db.prepare('SELECT 1 FROM reports WHERE canonical_url=? LIMIT 1').get(report.canonical_url)) return false;
   const keys = Object.keys(report);
   const sql = `INSERT INTO reports (${keys.join(',')}) VALUES (${keys.map(() => '?').join(',')}) ON CONFLICT(fingerprint) DO NOTHING`;
   return db.prepare(sql).run(...keys.map((key) => report[key])).changes === 1;

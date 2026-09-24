@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { openDb } from '../../src/db.js';
 import { getFilterOptions, getSummary, listReports } from './reports-repository.js';
 import { authenticate, changeOwnPassword, clearSessionCookies, createSession, currentUser, cookies, endSession, listInvitations, listUsers, makeInvitation, migrateAuth, publicUser, registerUser, requireCsrf, sessionCookies, updateUser } from './auth.js';
+import { myVotes, revokeVote, saveVote } from './votes-repository.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../web');
 const assets = new Map([
@@ -151,6 +152,22 @@ const server = http.createServer(async (req, res) => {
       return json(res, { ok: true });
     }
     if (req.method === 'GET' && url.pathname === '/health') return json(res, { ok: true, service: 'adas-vnext' });
+    if (req.method === 'GET' && url.pathname === '/api/my-votes') {
+      const user = approvedRequired(db, req, res); if (!user) return;
+      return json(res, { data: myVotes(db, user.id) });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/vote') {
+      const user = memberRequired(db, req, res); if (!user) return;
+      const body = await readJson(req);
+      try { return json(res, saveVote(db, user.id, body.fingerprint, body.vote)); }
+      catch (error) { return json(res, { error: error.message }, error.message === 'Report not found.' ? 404 : 400); }
+    }
+    const voteMatch = url.pathname.match(/^\/api\/vote\/([a-f0-9]{64})$/);
+    if (req.method === 'DELETE' && voteMatch) {
+      const user = memberRequired(db, req, res); if (!user) return;
+      try { return json(res, revokeVote(db, user.id, voteMatch[1])); }
+      catch (error) { return json(res, { error: error.message }, 400); }
+    }
     if (req.method === 'GET' && ['/api/reports', '/api/filters', '/api/summary'].includes(url.pathname)) {
       const user = approvedRequired(db, req, res); if (!user) return;
       if (url.pathname === '/api/reports') return json(res, listReports(db, url.searchParams));

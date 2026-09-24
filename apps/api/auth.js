@@ -32,6 +32,7 @@ export function migrateAuth(db) {
   `);
   try { db.exec('ALTER TABLE users ADD COLUMN approved INTEGER NOT NULL DEFAULT 1'); }
   catch (error) { if (!/duplicate column name/i.test(error.message)) throw error; }
+  db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(2,?)').run(new Date().toISOString());
 }
 
 function audit(db, userId, action, detail = null) {

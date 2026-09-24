@@ -1,4 +1,4 @@
-const state = { page: 1, pageSize: 20, sort: 'date', language: localStorage.getItem('adas-language') === 'zh' ? 'zh' : 'en', user: null, csrf: null, authMode: 'login' };
+const state = { page: 1, pageSize: 20, sort: 'date', language: localStorage.getItem('adas-language') === 'zh' ? 'zh' : 'en', user: null, csrf: null, authMode: 'login', myVotes: new Map() };
 const $ = (selector) => document.querySelector(selector);
 let searchTimer;
 let summarySnapshot;
@@ -9,6 +9,8 @@ const labels = {
 const text = (key) => labels[state.language][key];
 Object.assign(labels.en, { pendingApproval: 'Your account is waiting for administrator approval. The accident database is not available yet.', signInToView: 'Sign in with an approved account to view database content.', approved: 'Database access: approved', pending: 'Database access: pending', approval: 'Database approval', accountStatus: 'Account status', approve: 'Approved', unapproved: 'Pending approval' });
 Object.assign(labels.zh, { pendingApproval: '账户正在等待管理员批准，暂时无法访问事故数据库。', signInToView: '请使用已获批准的账户登录以查看数据库内容。', approved: '数据库权限：已批准', pending: '数据库权限：待批准', approval: '数据库审批', accountStatus: '账户状态', approve: '已批准', unapproved: '待批准' });
+Object.assign(labels.en, { relevant: 'Relevant ADAS incident', notRelevant: 'Not relevant', revokeVote: 'Undo vote', myVote: 'Your vote', communityVotes: 'Community votes' });
+Object.assign(labels.zh, { relevant: '相关 ADAS 事故', notRelevant: '不相关', revokeVote: '撤销投票', myVote: '您的投票', communityVotes: '社区投票' });
 
 async function fetchJson(url) {
   const response = await fetch(url, { headers: { accept: 'application/json' }, cache: 'no-store' });
@@ -53,19 +55,23 @@ function renderDatabaseAccess() {
     $('#reports').replaceChildren();
     $('#page-status').textContent = '';
     summarySnapshot = null;
+    state.myVotes.clear();
   }
 }
 
 async function loadDatabaseData() {
   if (!state.user?.approved) return;
   try {
-    const [summary, filters] = await Promise.all([fetchJson('/api/summary'), fetchJson('/api/filters')]);
+    const [summary, filters, votes] = await Promise.all([fetchJson('/api/summary'), fetchJson('/api/filters'), fetchJson('/api/my-votes')]);
     summarySnapshot = summary;
+    state.myVotes = new Map(votes.data.map((vote) => [vote.fingerprint, vote.vote]));
     renderSummary();
     for (const field of ['brand', 'cause', 'province', 'road_type', 'verification_status']) {
       const select = document.querySelector(`[data-filter="${field}"]`);
       const selected = select.value;
-      select.replaceChildren(Object.assign(document.createElement('option'), { value: '', textContent: text('all') }));
+      const all = Object.assign(document.createElement('option'), { value: '', textContent: text('all') });
+      all.dataset.i18n = 'all';
+      select.replaceChildren(all);
       for (const value of filters[field] || []) {
         const option = document.createElement('option'); option.value = value; option.textContent = value; select.append(option);
       }
@@ -138,8 +144,11 @@ function addText(parent, tag, value, className = '') {
 function reportCard(report) {
   const card = document.createElement('article');
   card.className = 'report-card';
-  const title = state.language === 'zh' ? report.title_zh : report.title_en;
-  const content = state.language === 'zh' ? report.content_zh : (report.description_en || report.content_en);
+  const title = state.language === 'zh' ? (report.title_zh_short || report.title_zh) : (report.title_en_short || report.title_en);
+  const chineseSummary = (report.summary_zh || '').trim();
+  const content = state.language === 'zh'
+    ? (chineseSummary.length >= 20 && !/^#/.test(chineseSummary) ? chineseSummary : report.content_zh)
+    : (report.summary_en || report.description_en || report.content_en);
   const date = report.event_date || report.published_at || report.collected_at || '';
   addText(card, 'time', date.slice(0, 10));
   addText(card, 'h2', title || text('missingTitle'));
@@ -147,6 +156,28 @@ function reportCard(report) {
   const details = [report.publisher_name || report.source_name, report.brand, report.cause, report.road_type, report.province, report.verification_status].filter(Boolean).join(' · ');
   addText(card, 'p', details, 'report-meta');
   if (Number.isFinite(report.svm_score)) addText(card, 'p', `SVM: ${report.svm_score.toFixed(3)}`, 'report-score');
+  const counts = report.labels?.community_votes;
+  if (counts) addText(card, 'p', `${text('communityVotes')}: ${counts.relevant} ${text('relevant')} · ${counts.not_relevant} ${text('notRelevant')}`, 'report-meta');
+  const controls = document.createElement('div'); controls.className = 'vote-controls';
+  for (const [value, label] of [['relevant', 'relevant'], ['not_relevant', 'notRelevant']]) {
+    const button = document.createElement('button'); button.type = 'button'; button.textContent = text(label);
+    button.setAttribute('aria-pressed', String(state.myVotes.get(report.fingerprint) === value));
+    button.addEventListener('click', async () => {
+      try { await authRequest('/api/vote', 'POST', { fingerprint: report.fingerprint, vote: value }); state.myVotes.set(report.fingerprint, value); await loadReports(); }
+      catch (error) { $('#auth-status').textContent = error.message; }
+    });
+    controls.append(button);
+  }
+  if (state.myVotes.has(report.fingerprint)) {
+    addText(controls, 'span', `${text('myVote')}: ${text(state.myVotes.get(report.fingerprint) === 'relevant' ? 'relevant' : 'notRelevant')}`);
+    const revoke = document.createElement('button'); revoke.type = 'button'; revoke.textContent = text('revokeVote');
+    revoke.addEventListener('click', async () => {
+      try { await authRequest(`/api/vote/${report.fingerprint}`, 'DELETE'); state.myVotes.delete(report.fingerprint); await loadReports(); }
+      catch (error) { $('#auth-status').textContent = error.message; }
+    });
+    controls.append(revoke);
+  }
+  card.append(controls);
   if (report.source_url) {
     try {
       const source = new URL(report.source_url);

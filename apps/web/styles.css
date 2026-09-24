@@ -35,5 +35,8 @@ main { padding-bottom: 2rem; }
 .report-card time, .report-meta, .report-score { color: #657789; font-size: .9rem; }
 .report-content { white-space: pre-wrap; overflow-wrap: anywhere; }
 .report-card a { color: #075eaa; }
+.vote-controls { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin: .75rem 0; }
+.vote-controls [aria-pressed="true"] { background: #164f82; color: #fff; }
+.vote-controls span { color: #506174; font-size: .88rem; }
 .pagination { display: flex; align-items: center; justify-content: center; gap: 1rem; padding: .75rem; }
 @media (max-width: 580px) { body { padding: .7rem; } .summary { flex-direction: column; gap: .2rem; } }

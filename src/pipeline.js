@@ -15,7 +15,8 @@ export async function runCollection(options = {}) {
   const runId = beginRun(db);
   const stats = { fetched: 0, inserted: 0, duplicates: 0, rejected: 0 };
   const errors = [];
-  const svm = loadSvm();
+  const svm = loadSvm(db);
+  const svmModelId = db.prepare('SELECT id FROM svm_models ORDER BY id DESC LIMIT 1').get()?.id || null;
   const sourceIds = options.sourceIds ? new Set(options.sourceIds) : null;
   const sources = readJson('config/sources.json').sources.filter((source) => source.enabled && (!sourceIds || sourceIds.has(source.id)));
   for (const source of sources) {
@@ -23,7 +24,7 @@ export async function runCollection(options = {}) {
       let items = [];
       let adapterState = null;
       if (source.type === 'rss-search' && !options.importOnly) items = await collectRss(source);
-      if (source.type === 'jsonl-inbox') items = inboxFiles(path.resolve(rootDir, source.path)).flatMap(readJsonl);
+      if (source.type === 'jsonl-inbox') items = inboxFiles(options.inboxDir || path.resolve(rootDir, source.path)).flatMap(readJsonl);
       if (source.type === 'weibo-cli' && !options.importOnly) {
         const prior = db.prepare('SELECT state_json FROM source_state WHERE source_id=?').get(source.id);
         const queryPacks = typeof source.query_packs === 'string' ? readJson(source.query_packs).packs : source.query_packs;
@@ -32,19 +33,33 @@ export async function runCollection(options = {}) {
       }
       if (source.enrich_weibo_web && items.length) items = (await enrichWeiboItems(items, { maxItems: source.max_enrichments || 5, delayMs: source.enrich_delay_ms, timeoutMs: source.enrich_timeout_ms })).items;
       stats.fetched += items.length;
+      const accepted = [];
       for (const item of items) {
         const report = normalizeReport(item, source);
         const svmScore = scoreSvm(svm, `${report.title} ${report.content}`);
+        report.svm_score = svmScore;
+        report.svm_model_id = svmModelId;
         const sourceReviewed = source.type === 'jsonl-inbox' && item.reviewed_relevance === true;
         if (svmScore !== null && svmScore < 0 && !sourceReviewed) { stats.rejected++; continue; }
         const translated = await translateDescription(`${report.title}. ${report.content}`);
         if (translated) { report.english_description = translated; report.english_description_source = 'configured_translation_endpoint'; }
         if (!report.title || report.relevance_score < 0.55) { stats.rejected++; continue; }
-        if (insertReport(db, report)) stats.inserted++; else stats.duplicates++;
+        accepted.push(report);
       }
-      db.prepare(`INSERT INTO source_state(source_id,last_success_at,last_error,last_item_at,state_json,updated_at)
-        VALUES(?,?,?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET last_success_at=excluded.last_success_at,last_error=NULL,last_item_at=excluded.last_item_at,state_json=COALESCE(excluded.state_json,source_state.state_json),updated_at=excluded.updated_at`)
-        .run(source.id, new Date().toISOString(), null, items[0]?.published_at || null, adapterState, new Date().toISOString());
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        let inserted = 0;
+        let duplicates = 0;
+        for (const report of accepted) {
+          if (insertReport(db, report)) inserted++; else duplicates++;
+        }
+        db.prepare(`INSERT INTO source_state(source_id,last_success_at,last_error,last_item_at,state_json,updated_at)
+          VALUES(?,?,?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET last_success_at=excluded.last_success_at,last_error=NULL,last_item_at=excluded.last_item_at,state_json=COALESCE(excluded.state_json,source_state.state_json),updated_at=excluded.updated_at`)
+          .run(source.id, new Date().toISOString(), null, items[0]?.published_at || null, adapterState, new Date().toISOString());
+        db.exec('COMMIT');
+        stats.inserted += inserted;
+        stats.duplicates += duplicates;
+      } catch (error) { db.exec('ROLLBACK'); throw error; }
     } catch (error) {
       errors.push({ source: source.id, error: error.message });
       db.prepare(`INSERT INTO source_state(source_id,last_error,updated_at) VALUES(?,?,?)

@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { rootDir } from '../../src/config.js';
 import { inboxFiles, readJsonl } from '../../src/importer.js';
@@ -18,5 +19,13 @@ for (const file of files) {
 }
 
 const result = await runCollection({ sourceIds: ['manual-platform-exports'], importOnly: true });
+if (!result.errors.length) {
+  for (const file of files) {
+    const processed = `${file}.processed`;
+    if (fs.existsSync(processed)) throw new Error(`Processed-file target already exists: ${path.basename(processed)}`);
+    fs.renameSync(file, processed);
+  }
+}
+result.archived_files = result.errors.length ? 0 : files.length;
 console.log(JSON.stringify(result, null, 2));
 if (result.errors.length) process.exitCode = 1;

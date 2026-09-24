@@ -1,6 +1,6 @@
 # Self-hosted ADAS database and web UI
 
-**Status:** vNext implementation started in parallel; production cutover has not started
+**Status:** home-hosted cutover completed on 2026-09-24; reboot-before-sign-in availability remains open
 **Owner:** `CN_Vehicle_Accident_Updater`  
 **Release baseline:** v0.1.0 in the Updater and Public Database repositories
 
@@ -36,7 +36,7 @@ The browser requests report pages and filter options from the API. The server re
 - **Ingestion:** retain the existing incremental collector and JSONL import format. Each run commits new records and source cursors transactionally, using fingerprints and canonical URLs to avoid duplicates.
 - **Application:** extend the existing local dashboard/API to serve the public database UI, report filtering, bilingual display, relevance/date sorting, login, and direct reversible votes. Use server-side pagination and filter/sort queries so the full dataset is not embedded in HTML or fetched as one huge response.
 - **Votes and SVM:** preserve the active votes from the current vote API. Train from the current per-user votes stored in SQLite, with ties marked undecided. Save the trained boundary and per-record scores in the same database, and return scores through the API.
-- **Login and authorization:** use project-owned usernames and passwords with no third-party identity provider. Registration requires a one-use, expiring invitation created by an existing account. Bootstrap the first administrator locally through a one-time command; administrators can manage accounts, invitations, review, and system operations. Store only password hashes and hashed session/invitation tokens. Use secure same-site cookies, CSRF checks, login throttling, and audit events. Public browsing remains read-only.
+- **Login and authorization:** use project-owned usernames and passwords with no third-party identity provider. Registration requires a one-use, expiring invitation created by an existing approved account. Bootstrap the first administrator locally through a one-time command; administrators approve database access and manage accounts, invitations, review, and system operations. Store only password hashes and hashed session/invitation tokens. Use secure same-site cookies, CSRF checks, login throttling, and audit events. Only approved accounts can read database content.
 - **Network boundary:** bind Node to `127.0.0.1`; let Tailscale Funnel provide public HTTPS. Do not expose the SQLite path, local inbox, logs, exports, `.env`, or arbitrary filesystem paths.
 - **GitHub role:** keep the Updater as the code and methods repository. Keep v0.1.0 as the frozen historical snapshot. Retire live database publishing and Pages after cutover. Existing public Git history and the release snapshot remain available unless a separate history-removal request is approved.
 
@@ -76,7 +76,7 @@ The browser requests report pages and filter options from the API. The server re
 - Keep password/session secrets out of logs and repository files. Store session and invitation token hashes rather than reusable plaintext tokens.
 - Bind only to loopback and serve only known UI files; reject path traversal and requests for database, log, inbox, or environment files.
 
-**Done when:** public users can read reports; signed-in users can vote; unauthorized write attempts are rejected; automated checks show no secrets or local files are exposed.
+**Done when:** approved users can read reports and vote; pending and anonymous users cannot read reports; unauthorized write attempts are rejected; automated checks show no secrets or local files are exposed.
 
 ### 5. Make the home computer reliable
 
@@ -119,7 +119,19 @@ The release tag remains an immutable copy even after live publication is retired
 
 ## vNext branch progress
 
-The `vnext-home-hosted` branch has an isolated API/UI scaffold on port 8788, a paginated read API backed by SQLite, a report-free browser shell, a public-news updater command limited to news sources, and a social JSONL inbox importer with a versioned record schema. Local username/password accounts with invitation-gated registration, explicit admin approval before database access, self-service password changes, session revocation, member invitations, admin account controls, and a one-time first-administrator bootstrap are implemented and covered by an authentication lifecycle smoke script. Pending users can sign in but cannot read reports, filters, or summaries; approval revocation blocks those APIs immediately while preserving the account session. The branch uses its own worktree database and is not connected to the production Funnel. Production data migration, voting integration, and service recovery remain future phases.
+The `vnext-home-hosted` branch runs the API/UI on port 8788, with a report-free browser shell and paginated SQLite API. The 2026-09-24 migration reconciled all 294 public reports and 72 active votes into the vNext database; a repeat inserted no duplicates. The bilingual fields, SVM weights, and per-report scores are stored in SQLite. Direct local-account vote/change/revoke is implemented and retrains the model. Local username/password accounts, invitation-gated registration, admin approval, password changes, session revocation, and account controls passed the staged authentication smoke test. The staged I/O smoke test passed pagination, filters, date/relevance sorts, bilingual data, access denial, and vote/change/revoke. A real HTTPS smoke test passed pending/approved access, Secure cookies, report read, and vote/revoke, then removed its temporary account. Daily collection and online backup tasks passed manual Task Scheduler runs; a five-minute watchdog recovered the service after a forced failure. Tailscale Funnel now targets this service, and GitHub Pages is an archived landing page. The old scheduled GitHub publication and local collector task are disabled. A physical reboot was not performed; Windows denied changing the service to a noninteractive S4U startup task, so availability currently begins at user sign-in.
+
+## Database I/O milestones and feature gates
+
+| Milestone | Features | Acceptance gate |
+| --- | --- | --- |
+| 1. Baseline and backups | Reproducible source inventory, online SQLite backups, public JSON and SVM snapshot, checksum and integrity manifest, deduplication rules | All backups reopen; report and vote counts reconcile before migration |
+| 2. Write path | Versioned schema, collector-to-inbox contract, validated importer, transactional writes and source cursor updates, fingerprint and canonical URL collision handling | Retry is idempotent and a failed source cannot leave partial reports or advance its cursor |
+| 3. Migrated read path | Import reports and history to staging, approved-only paginated report/filter/summary APIs, bilingual fields, date and relevance sorting | Counts and fingerprints reconcile; approved browser sees the migrated records; pending user gets 403 |
+| 4. Feedback and SVM | Import active historical votes, local account vote/change/revoke API and UI, model version and per-record score refresh | Votes survive restart; a changed/revoked vote changes training input and updated scores are visible |
+| 5. Operations and cutover | Daily import/model jobs, process restart, backups and restore drill, external HTTPS checks, live URL switch | Reboot and restore work; mobile flow passes; exactly one live system accepts writes |
+
+The 2026-09-24 baseline backup under the workspace-level `baseline-backups` directory contains verified snapshots of 294 source reports, 72 active votes, 23 runs, the public 294-report JSON, the SVM model, and the empty vNext report store. Fingerprint sets match exactly. Four historical canonical URL collisions must be preserved during migration and blocked for new inserts.
 
 ## Risks and decisions
 

@@ -14,4 +14,10 @@ export function trainSvm(samples, options = {}) {
 export function scoreSvm(model, text) { if (!model) return null; const x = vectorize(text); return Object.entries(x).reduce((sum, [key, value]) => sum + (model.weights[key] || 0) * value, model.bias || 0); }
 export function saveSvm(model) { if (!model) return; fs.mkdirSync(path.dirname(modelPath), { recursive: true }); fs.writeFileSync(modelPath, JSON.stringify(model, null, 2) + '\n'); }
 export function clearSvm() { if (fs.existsSync(modelPath)) fs.unlinkSync(modelPath); }
-export function loadSvm() { try { return JSON.parse(fs.readFileSync(modelPath, 'utf8')); } catch { return null; } }
+export function loadSvm(db) {
+  if (db) {
+    const row = db.prepare('SELECT algorithm,trained_at,samples,weights_json,bias FROM svm_models ORDER BY id DESC LIMIT 1').get();
+    return row ? { algorithm: row.algorithm, trained_at: row.trained_at, samples: row.samples, weights: JSON.parse(row.weights_json), bias: row.bias } : null;
+  }
+  try { return JSON.parse(fs.readFileSync(modelPath, 'utf8')); } catch { return null; }
+}
