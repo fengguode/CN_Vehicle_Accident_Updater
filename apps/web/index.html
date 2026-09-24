@@ -30,6 +30,11 @@
         <button id="logout" type="button" data-i18n="logout">Log out</button>
         <button id="create-invite" type="button" data-i18n="createInvite">Create invitation</button>
         <output id="invite-result"></output>
+        <form id="password-form">
+          <label><span data-i18n="currentPassword">Current password</span><input name="current_password" type="password" autocomplete="current-password" required minlength="12" maxlength="200"></label>
+          <label><span data-i18n="newPassword">New password</span><input name="new_password" type="password" autocomplete="new-password" required minlength="12" maxlength="200"></label>
+          <button type="submit" data-i18n="changePassword">Change password</button>
+        </form>
       </div>
       <section id="admin-panel" hidden>
         <h2 data-i18n="userManagement">User management</h2>

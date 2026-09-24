@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { openDb } from '../../src/db.js';
 import { getFilterOptions, getSummary, listReports } from './reports-repository.js';
-import { authenticate, clearSessionCookies, createSession, currentUser, cookies, endSession, listInvitations, listUsers, makeInvitation, migrateAuth, publicUser, registerUser, requireCsrf, sessionCookies, updateUser } from './auth.js';
+import { authenticate, changeOwnPassword, clearSessionCookies, createSession, currentUser, cookies, endSession, listInvitations, listUsers, makeInvitation, migrateAuth, publicUser, registerUser, requireCsrf, sessionCookies, updateUser } from './auth.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../web');
 const assets = new Map([
@@ -110,6 +110,13 @@ const server = http.createServer(async (req, res) => {
       catch (error) { return json(res, { error: error.message }, 400); }
       return json(res, invitation, 201);
     }
+    if (req.method === 'POST' && url.pathname === '/api/auth/password') {
+      const user = memberRequired(db, req, res); if (!user) return;
+      const body = await readJson(req);
+      try { changeOwnPassword(db, user.id, body.current_password, body.new_password, cookies(req).adas_session); }
+      catch (error) { return json(res, { error: error.message }, 400); }
+      return json(res, { ok: true });
+    }
     if (req.method === 'GET' && url.pathname === '/api/auth/invitations') {
       const user = currentUser(db, req);
       if (!user) return json(res, { error: 'authentication_required' }, 401);
@@ -125,7 +132,9 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'PATCH' && userMatch) {
       const actor = adminRequired(db, req, res); if (!actor) return;
       const body = await readJson(req);
-      if (!updateUser(db, Number(userMatch[1]), actor.id, body)) return json(res, { error: 'user_not_found' }, 404);
+      try {
+        if (!updateUser(db, Number(userMatch[1]), actor.id, body)) return json(res, { error: 'user_not_found' }, 404);
+      } catch (error) { return json(res, { error: error.message }, 400); }
       return json(res, { ok: true });
     }
     if (req.method === 'GET' && url.pathname === '/health') return json(res, { ok: true, service: 'adas-vnext' });

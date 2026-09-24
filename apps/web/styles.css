@@ -16,6 +16,9 @@ main { padding-bottom: 2rem; }
 #auth-form input { border: 1px solid #c6d1db; border-radius: 7px; padding: .5rem; }
 #auth-status { margin-bottom: .5rem; color: #506174; }
 #account-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .7rem; }
+#password-form { display: flex; align-items: end; flex-wrap: wrap; gap: .6rem; width: 100%; margin-top: .5rem; }
+#password-form label { display: grid; gap: .25rem; color: #506174; font-size: .85rem; }
+#password-form input { border: 1px solid #c6d1db; border-radius: 7px; padding: .5rem; }
 #invite-result { overflow-wrap: anywhere; font-family: ui-monospace, monospace; }
 #admin-panel { margin-top: 1rem; border-top: 1px solid #d9e1e8; }
 #admin-panel h2 { font-size: 1rem; }

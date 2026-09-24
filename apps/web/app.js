@@ -3,8 +3,8 @@ const $ = (selector) => document.querySelector(selector);
 let searchTimer;
 let summarySnapshot;
 const labels = {
-  en: { eyebrow: 'CHINA ADAS INCIDENT DATABASE', heading: 'Reported incident leads', loading: 'Loading reports…', keyword: 'Keyword', brand: 'Brand', cause: 'Cause', province: 'Province', road: 'Road type', verification: 'Verification', sort: 'Sort by', all: 'All', dateSort: 'Date (newest first)', relevanceSort: 'SVM relevance', previous: 'Previous', next: 'Next', reports: 'reports', unverified: 'unverified', latest: 'Latest update', noReports: 'No reports match these filters.', loadError: 'Could not load reports. Check that the home database service is running.', missingTitle: 'Untitled report', openSource: 'Open original source', searchPlaceholder: 'Title, content, source', username: 'Username', password: 'Password (12+ characters)', inviteCode: 'Invitation code', login: 'Log in', register: 'Create account', needInvite: 'Register with invitation', haveAccount: 'Already registered? Log in', logout: 'Log out', createInvite: 'Create invitation', userManagement: 'User management', signedIn: 'Signed in as', admin: 'Administrator', member: 'Member', accountError: 'Account request failed', inviteCreated: 'Invitation code (share once):', active: 'Active', disabled: 'Disabled', role: 'Role', save: 'Save', loginRequired: 'Sign in to create an invitation.' },
-  zh: { eyebrow: '中国 ADAS 事故数据库', heading: '公开报告线索', loading: '正在加载…', keyword: '关键词', brand: '品牌', cause: '事故原因', province: '省份', road: '道路类型', verification: '核验状态', sort: '排序方式', all: '全部', dateSort: '日期（最新优先）', relevanceSort: 'SVM 相关度', previous: '上一页', next: '下一页', reports: '条报告', unverified: '条未核实', latest: '最近更新', noReports: '没有符合条件的报告。', loadError: '无法加载报告，请确认家用数据库服务正在运行。', missingTitle: '未命名报告', openSource: '打开原始来源', searchPlaceholder: '标题、内容或来源', username: '用户名', password: '密码（至少 12 位）', inviteCode: '邀请码', login: '登录', register: '创建账户', needInvite: '使用邀请码注册', haveAccount: '已有账户？登录', logout: '退出登录', createInvite: '创建邀请码', userManagement: '用户管理', signedIn: '当前用户', admin: '管理员', member: '成员', accountError: '账户请求失败', inviteCreated: '邀请码（请立即分享）：', active: '启用', disabled: '停用', role: '角色', save: '保存', loginRequired: '请先登录以创建邀请码。' }
+  en: { eyebrow: 'CHINA ADAS INCIDENT DATABASE', heading: 'Reported incident leads', loading: 'Loading reports…', keyword: 'Keyword', brand: 'Brand', cause: 'Cause', province: 'Province', road: 'Road type', verification: 'Verification', sort: 'Sort by', all: 'All', dateSort: 'Date (newest first)', relevanceSort: 'SVM relevance', previous: 'Previous', next: 'Next', reports: 'reports', unverified: 'unverified', latest: 'Latest update', noReports: 'No reports match these filters.', loadError: 'Could not load reports. Check that the home database service is running.', missingTitle: 'Untitled report', openSource: 'Open original source', searchPlaceholder: 'Title, content, source', username: 'Username', password: 'Password (12+ characters)', inviteCode: 'Invitation code', login: 'Log in', register: 'Create account', needInvite: 'Register with invitation', haveAccount: 'Already registered? Log in', logout: 'Log out', createInvite: 'Create invitation', userManagement: 'User management', signedIn: 'Signed in as', admin: 'Administrator', member: 'Member', accountError: 'Account request failed', inviteCreated: 'Invitation code (share once):', active: 'Active', disabled: 'Disabled', role: 'Role', save: 'Save', loginRequired: 'Sign in to create an invitation.', currentPassword: 'Current password', newPassword: 'New password', changePassword: 'Change password', passwordChanged: 'Password changed. Other sessions were signed out.' },
+  zh: { eyebrow: '中国 ADAS 事故数据库', heading: '公开报告线索', loading: '正在加载…', keyword: '关键词', brand: '品牌', cause: '事故原因', province: '省份', road: '道路类型', verification: '核验状态', sort: '排序方式', all: '全部', dateSort: '日期（最新优先）', relevanceSort: 'SVM 相关度', previous: '上一页', next: '下一页', reports: '条报告', unverified: '条未核实', latest: '最近更新', noReports: '没有符合条件的报告。', loadError: '无法加载报告，请确认家用数据库服务正在运行。', missingTitle: '未命名报告', openSource: '打开原始来源', searchPlaceholder: '标题、内容或来源', username: '用户名', password: '密码（至少 12 位）', inviteCode: '邀请码', login: '登录', register: '创建账户', needInvite: '使用邀请码注册', haveAccount: '已有账户？登录', logout: '退出登录', createInvite: '创建邀请码', userManagement: '用户管理', signedIn: '当前用户', admin: '管理员', member: '成员', accountError: '账户请求失败', inviteCreated: '邀请码（请立即分享）：', active: '启用', disabled: '停用', role: '角色', save: '保存', loginRequired: '请先登录以创建邀请码。', currentPassword: '当前密码', newPassword: '新密码', changePassword: '修改密码', passwordChanged: '密码已修改，其他登录会话已退出。' }
 };
 const text = (key) => labels[state.language][key];
 
@@ -174,13 +174,14 @@ $('#language-toggle').addEventListener('click', () => {
 $('#auth-mode').addEventListener('click', () => { state.authMode = state.authMode === 'login' ? 'register' : 'login'; renderAuth(); });
 $('#auth-form').addEventListener('submit', async (event) => {
   event.preventDefault();
-  const form = new FormData(event.currentTarget);
+  const formElement = event.currentTarget;
+  const form = new FormData(formElement);
   const payload = { username: form.get('username'), password: form.get('password') };
   const route = state.authMode === 'register' ? '/api/auth/register' : '/api/auth/login';
   if (state.authMode === 'register') payload.invite_code = form.get('invite_code');
   try {
     const result = await authRequest(route, 'POST', payload);
-    state.user = result.user; state.csrf = result.csrf; state.authMode = 'login'; event.currentTarget.reset();
+    state.user = result.user; state.csrf = result.csrf; state.authMode = 'login'; formElement.reset();
     $('#auth-status').textContent = `${text('signedIn')}: ${state.user.username}`; renderAuth();
   } catch (error) { $('#auth-status').textContent = error.message; }
 });
@@ -191,6 +192,16 @@ $('#logout').addEventListener('click', async () => {
 $('#create-invite').addEventListener('click', async () => {
   try { const result = await authRequest('/api/auth/invitations', 'POST', {}); $('#invite-result').textContent = `${text('inviteCreated')} ${result.code} · ${result.expires_at.slice(0, 10)}`; }
   catch (error) { $('#auth-status').textContent = error.message; }
+});
+$('#password-form').addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const formElement = event.currentTarget;
+  const form = new FormData(formElement);
+  try {
+    await authRequest('/api/auth/password', 'POST', { current_password: form.get('current_password'), new_password: form.get('new_password') });
+    formElement.reset();
+    $('#auth-status').textContent = text('passwordChanged');
+  } catch (error) { $('#auth-status').textContent = error.message; }
 });
 $('#sort').addEventListener('change', (event) => { state.sort = event.target.value; state.page = 1; loadReports(); });
 $('#query').addEventListener('input', () => { clearTimeout(searchTimer); state.page = 1; searchTimer = setTimeout(loadReports, 250); });

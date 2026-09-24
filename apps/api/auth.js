@@ -90,6 +90,23 @@ export function authenticate(db, username, password) {
   return publicUser(user);
 }
 
+export function changeOwnPassword(db, userId, currentPassword, newPassword, sessionToken) {
+  const user = db.prepare('SELECT * FROM users WHERE id=? AND active=1').get(userId);
+  if (!user) throw new Error('Account is unavailable.');
+  validateCredentials(user.username, newPassword);
+  const candidate = scrypt(typeof currentPassword === 'string' ? currentPassword.slice(0, 200) : '', user.password_salt);
+  if (!crypto.timingSafeEqual(candidate, Buffer.from(user.password_hash, 'hex'))) throw new Error('Current password is incorrect.');
+  if (currentPassword === newPassword) throw new Error('Choose a password different from the current one.');
+  const record = passwordRecord(newPassword);
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.prepare('UPDATE users SET password_salt=?,password_hash=? WHERE id=?').run(record.salt, record.passwordHash, userId);
+    db.prepare('DELETE FROM sessions WHERE user_id=? AND token_hash<>?').run(userId, hash(sessionToken || ''));
+    audit(db, userId, 'change_password');
+    db.exec('COMMIT');
+  } catch (error) { db.exec('ROLLBACK'); throw error; }
+}
+
 export function publicUser(user) { return { id: user.id, username: user.username, role: user.role, active: Boolean(user.active) }; }
 
 export function createSession(db, userId) {
@@ -175,6 +192,8 @@ export function listUsers(db) {
 export function updateUser(db, id, actorId, changes) {
   const user = db.prepare('SELECT * FROM users WHERE id=?').get(id);
   if (!user) return false;
+  if (changes.role !== undefined && typeof changes.role !== 'string') throw new Error('Role must be a string.');
+  if (changes.active !== undefined && typeof changes.active !== 'boolean') throw new Error('Active status must be true or false.');
   const role = changes.role === undefined ? user.role : changes.role;
   const active = changes.active === undefined ? user.active : (changes.active ? 1 : 0);
   if (!['admin', 'member'].includes(role)) throw new Error('Invalid role.');

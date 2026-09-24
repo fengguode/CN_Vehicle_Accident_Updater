@@ -119,7 +119,7 @@ The release tag remains an immutable copy even after live publication is retired
 
 ## vNext branch progress
 
-The `vnext-home-hosted` branch has an isolated API/UI scaffold on port 8788, a paginated read API backed by SQLite, a report-free browser shell, a public-news updater command limited to news sources, and a social JSONL inbox importer with a versioned record schema. Local username/password accounts with invitation-gated registration, sessions, member invitations, basic admin account controls, and a one-time first-administrator bootstrap are implemented. The branch uses its own worktree database and is not connected to the production Funnel. Production data migration, voting integration, and service recovery remain future phases.
+The `vnext-home-hosted` branch has an isolated API/UI scaffold on port 8788, a paginated read API backed by SQLite, a report-free browser shell, a public-news updater command limited to news sources, and a social JSONL inbox importer with a versioned record schema. Local username/password accounts with invitation-gated registration, self-service password changes, session revocation, member invitations, admin access controls, and a one-time first-administrator bootstrap are implemented and covered by an authentication lifecycle smoke script. The branch uses its own worktree database and is not connected to the production Funnel. Production data migration, voting integration, and service recovery remain future phases.
 
 ## Risks and decisions
 

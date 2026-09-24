@@ -20,6 +20,7 @@
     "weibo-backfill": "node src/cli.js weibo-backfill",
     "vnext:serve": "node apps/api/server.js",
     "vnext:bootstrap-admin": "node apps/api/bootstrap-admin.js",
+    "vnext:test-auth": "node scripts/vnext-auth-smoke.mjs",
     "vnext:update-public": "node apps/updater/run-public.js",
     "vnext:import-social": "node apps/social-collector/import-inbox.js",
     "stats": "node src/cli.js stats",
