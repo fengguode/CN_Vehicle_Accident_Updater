@@ -36,7 +36,7 @@ The browser requests report pages and filter options from the API. The server re
 - **Ingestion:** retain the existing incremental collector and JSONL import format. Each run commits new records and source cursors transactionally, using fingerprints and canonical URLs to avoid duplicates.
 - **Application:** extend the existing local dashboard/API to serve the public database UI, report filtering, bilingual display, relevance/date sorting, login, and direct reversible votes. Use server-side pagination and filter/sort queries so the full dataset is not embedded in HTML or fetched as one huge response.
 - **Votes and SVM:** preserve the active votes from the current vote API. Train from the current per-user votes stored in SQLite, with ties marked undecided. Save the trained boundary and per-record scores in the same database, and return scores through the API.
-- **Login and authorization:** keep GitHub OAuth for user identity. Require login for voting and administrative actions. Protect collection, editing, vote, and model-management endpoints with authorization, CSRF protections where cookies are used, and rate limits. Public browsing remains read-only.
+- **Login and authorization:** use project-owned usernames and passwords with no third-party identity provider. Registration requires a one-use, expiring invitation created by an existing account. Bootstrap the first administrator locally through a one-time command; administrators can manage accounts, invitations, review, and system operations. Store only password hashes and hashed session/invitation tokens. Use secure same-site cookies, CSRF checks, login throttling, and audit events. Public browsing remains read-only.
 - **Network boundary:** bind Node to `127.0.0.1`; let Tailscale Funnel provide public HTTPS. Do not expose the SQLite path, local inbox, logs, exports, `.env`, or arbitrary filesystem paths.
 - **GitHub role:** keep the Updater as the code and methods repository. Keep v0.1.0 as the frozen historical snapshot. Retire live database publishing and Pages after cutover. Existing public Git history and the release snapshot remain available unless a separate history-removal request is approved.
 
@@ -70,9 +70,10 @@ The browser requests report pages and filter options from the API. The server re
 
 ### 4. Secure the unified service
 
-- Integrate the existing OAuth routes with the dashboard and configure same-origin login/session behavior for the Tailscale hostname.
-- Require authenticated authorization for all state-changing routes, including collection and report edits. Validate request methods, payload sizes, input fields, session expiry, CSRF behavior, and rate limits.
-- Keep OAuth secrets and export/backup credentials in the ignored local environment file or Windows secret store. Redact secrets and private identifiers from logs.
+- Add account, invitation, session, and audit tables to the home SQLite database. Implement password hashing, account registration gated by an unexpired one-use code, login/logout, and account status checks.
+- Add a one-time local administrator bootstrap command that only works while no administrator exists. Administrators can manage users, invitations, report review, and system actions; existing members can create invitations for new members.
+- Require authenticated authorization for all state-changing routes, including votes, collection, report edits, and model operations. Validate same-origin requests, payload sizes, input fields, session expiry, CSRF tokens, and login rate limits.
+- Keep password/session secrets out of logs and repository files. Store session and invitation token hashes rather than reusable plaintext tokens.
 - Bind only to loopback and serve only known UI files; reject path traversal and requests for database, log, inbox, or environment files.
 
 **Done when:** public users can read reports; signed-in users can vote; unauthorized write attempts are rejected; automated checks show no secrets or local files are exposed.
@@ -90,7 +91,7 @@ The browser requests report pages and filter options from the API. The server re
 
 - Load the current 294 public reports and current local records into a staging copy of the unified database; reconcile any overlap by fingerprint and canonical URL.
 - Load the current vote export, retrain the SVM, and compare active vote counts and report classifications with the v0.1.0 snapshot.
-- Exercise pagination, filters, sorting, language switching, GitHub login, vote/change/revoke, import deduplication, daily collection, and restart recovery.
+- Exercise pagination, filters, sorting, language switching, invitation-gated local registration/login, vote/change/revoke, import deduplication, daily collection, and restart recovery.
 - Test from an external network and a mobile browser through the Tailscale HTTPS hostname.
 
 **Done when:** counts reconcile, each test flow passes, and the user can browse and vote through the home-hosted URL without relying on GitHub Pages.
@@ -118,7 +119,7 @@ The release tag remains an immutable copy even after live publication is retired
 
 ## vNext branch progress
 
-The `vnext-home-hosted` branch now has an isolated API/UI scaffold on port 8788, a paginated read API backed by SQLite, a report-free browser shell, a public-news updater command limited to news sources, and a social JSONL inbox importer with a versioned record schema. This branch uses its own worktree database. It is not connected to the production Funnel and does not yet contain the migration, login, direct voting, or service-recovery phases above.
+The `vnext-home-hosted` branch has an isolated API/UI scaffold on port 8788, a paginated read API backed by SQLite, a report-free browser shell, a public-news updater command limited to news sources, and a social JSONL inbox importer with a versioned record schema. Local username/password accounts with invitation-gated registration, sessions, member invitations, basic admin account controls, and a one-time first-administrator bootstrap are implemented. The branch uses its own worktree database and is not connected to the production Funnel. Production data migration, voting integration, and service recovery remain future phases.
 
 ## Risks and decisions
 

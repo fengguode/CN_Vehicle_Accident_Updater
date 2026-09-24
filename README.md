@@ -20,15 +20,25 @@ No system can guarantee collection of “all” social-media posts. Platform log
 
 The frozen v0.1.0 release and current deployment remain unchanged. The parallel `vnext-home-hosted` branch starts separating the browser UI, database API, public-news updater, and social collector. See [the step-by-step self-hosting plan](docs/SELF_HOSTED_DATABASE_PLAN.md).
 
-The initial vNext scaffold runs locally on port 8788 and uses its own worktree database. It serves a report-free HTML shell whose JavaScript fetches paginated report data from the API. Public-news sources and social JSONL imports use separate commands:
+The initial vNext scaffold runs locally on port 8788 and uses its own worktree database. It serves a report-free HTML shell whose JavaScript fetches paginated report data from the API. Public-news sources and social JSONL imports use separate commands. Accounts are local to this service: no GitHub, WeChat, or other identity provider is used. Registration requires a one-use invitation issued by a logged-in member; the initial administrator is created once from the local terminal:
 
 ```powershell
+npm run vnext:bootstrap-admin
 npm run vnext:serve
+```
+
+Run the updater and social importer separately when needed:
+
+```powershell
 npm run vnext:update-public
 npm run vnext:import-social
 ```
 
-This scaffold is not connected to Tailscale Funnel and does not yet include the OAuth/voting integration or production data migration. Those are later plan phases; do not repoint the live Funnel during this parallel build.
+Run `vnext:bootstrap-admin` once, interactively, before starting the service. It refuses non-interactive input, accepts no password argument, hashes the password with scrypt, and refuses to run once an admin exists. Use at least 12 password characters. The administrator can manage user roles and active status; any signed-in member can create invitations that expire after seven days and can be used once. Session tokens are random, stored only as hashes, and sent in HttpOnly/Secure/SameSite cookies; password hashes and invitation codes are never exposed in list APIs. Keep the home host patched and reachable only through HTTPS when accessed remotely. `Secure` cookies assume HTTPS for non-localhost access.
+
+Do not publish or commit the vNext SQLite database. Back it up locally with the service stopped or using SQLite's online backup facilities. Password recovery is intentionally not public; an administrator recovery command will be specified separately before deployment.
+
+This scaffold is not connected to Tailscale Funnel and does not yet include voting integration or production data migration. Those are later plan phases; do not repoint the live Funnel during this parallel build.
 
 ## Quick start
 

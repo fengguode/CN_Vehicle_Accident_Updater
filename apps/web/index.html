@@ -17,6 +17,25 @@
     <button id="language-toggle" type="button" aria-label="Switch language">中文</button>
   </header>
   <main>
+    <section class="auth-panel" aria-label="Account">
+      <div id="auth-status" aria-live="polite"></div>
+      <form id="auth-form">
+        <label><span data-i18n="username">Username</span><input name="username" autocomplete="username" required minlength="3" maxlength="32"></label>
+        <label><span data-i18n="password">Password</span><input name="password" type="password" autocomplete="current-password" required minlength="12" maxlength="200"></label>
+        <label id="invite-field" hidden><span data-i18n="inviteCode">Invitation code</span><input name="invite_code" autocomplete="off"></label>
+        <button id="auth-submit" type="submit" data-i18n="login">Log in</button>
+        <button id="auth-mode" type="button" data-i18n="needInvite">Register with invitation</button>
+      </form>
+      <div id="account-actions" hidden>
+        <button id="logout" type="button" data-i18n="logout">Log out</button>
+        <button id="create-invite" type="button" data-i18n="createInvite">Create invitation</button>
+        <output id="invite-result"></output>
+      </div>
+      <section id="admin-panel" hidden>
+        <h2 data-i18n="userManagement">User management</h2>
+        <div id="admin-users"></div>
+      </section>
+    </section>
     <section class="summary" aria-live="polite">
       <span id="record-total" data-i18n="loading">Loading reports…</span>
       <span id="latest-collection"></span>
