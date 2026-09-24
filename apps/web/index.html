@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Public reports of ADAS-related road incidents in China">
+  <title>China ADAS Incident Database</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <header class="page-header">
+    <div>
+      <p class="eyebrow" data-i18n="eyebrow">CHINA ADAS INCIDENT DATABASE</p>
+      <h1 data-i18n="heading">Reported incident leads</h1>
+    </div>
+    <button id="language-toggle" type="button" aria-label="Switch language">中文</button>
+  </header>
+  <main>
+    <section class="summary" aria-live="polite">
+      <span id="record-total" data-i18n="loading">Loading reports…</span>
+      <span id="latest-collection"></span>
+    </section>
+    <section class="filters" aria-label="Filter reports">
+      <label><span data-i18n="keyword">Keyword</span> <input id="query" type="search" placeholder="Title, content, source"></label>
+      <label><span data-i18n="brand">Brand</span> <select data-filter="brand"><option value="" data-i18n="all">All</option></select></label>
+      <label><span data-i18n="cause">Cause</span> <select data-filter="cause"><option value="" data-i18n="all">All</option></select></label>
+      <label><span data-i18n="province">Province</span> <select data-filter="province"><option value="" data-i18n="all">All</option></select></label>
+      <label><span data-i18n="road">Road type</span> <select data-filter="road_type"><option value="" data-i18n="all">All</option></select></label>
+      <label><span data-i18n="verification">Verification</span> <select data-filter="verification_status"><option value="" data-i18n="all">All</option></select></label>
+      <label><span data-i18n="sort">Sort by</span>
+        <select id="sort">
+          <option value="date" data-i18n="dateSort">Date (newest first)</option>
+          <option value="relevance" data-i18n="relevanceSort">SVM relevance</option>
+        </select>
+      </label>
+    </section>
+    <section id="reports" class="reports" aria-live="polite"></section>
+    <nav class="pagination" aria-label="Report pages">
+      <button id="previous" type="button" disabled data-i18n="previous">Previous</button>
+      <span id="page-status"></span>
+      <button id="next" type="button" disabled data-i18n="next">Next</button>
+    </nav>
+  </main>
+</body>
+</html>

@@ -16,7 +16,8 @@ export async function runCollection(options = {}) {
   const stats = { fetched: 0, inserted: 0, duplicates: 0, rejected: 0 };
   const errors = [];
   const svm = loadSvm();
-  const sources = readJson('config/sources.json').sources.filter((source) => source.enabled);
+  const sourceIds = options.sourceIds ? new Set(options.sourceIds) : null;
+  const sources = readJson('config/sources.json').sources.filter((source) => source.enabled && (!sourceIds || sourceIds.has(source.id)));
   for (const source of sources) {
     try {
       let items = [];

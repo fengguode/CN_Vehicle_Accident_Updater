@@ -1,6 +1,6 @@
 # Self-hosted ADAS database and web UI
 
-**Status:** Proposed; implementation has not started  
+**Status:** vNext implementation started in parallel; production cutover has not started
 **Owner:** `CN_Vehicle_Accident_Updater`  
 **Release baseline:** v0.1.0 in the Updater and Public Database repositories
 
@@ -115,6 +115,10 @@ The browser requests report pages and filter options from the API. The server re
 Keep the existing GitHub Pages v0.1.0 snapshot as a temporary read-only fallback until the new service has passed migration and external-browser checks. If the home service is unavailable during cutover, restore the last verified SQLite backup and restart the service. Re-enable the archived static page only as an explicit fallback; do not let two systems accept votes or edits at the same time.
 
 The release tag remains an immutable copy even after live publication is retired. Removing the already-public report files from Git history would require a separate history rewrite and is outside this migration plan.
+
+## vNext branch progress
+
+The `vnext-home-hosted` branch now has an isolated API/UI scaffold on port 8788, a paginated read API backed by SQLite, a report-free browser shell, a public-news updater command limited to news sources, and a social JSONL inbox importer with a versioned record schema. This branch uses its own worktree database. It is not connected to the production Funnel and does not yet contain the migration, login, direct voting, or service-recovery phases above.
 
 ## Risks and decisions
 

@@ -16,9 +16,19 @@ A local, auditable research system for collecting public reports of ADAS-related
 
 No system can guarantee collection of “all” social-media posts. Platform login walls, API limits, deletions, private groups, censorship, and ambiguous language create measurable gaps. This project does not bypass platform access controls; add official/authorized API adapters or exports for higher coverage.
 
-## Hosting roadmap
+## Parallel vNext implementation
 
-The proposed migration to a home-hosted, SQLite-backed public database is documented in [the step-by-step self-hosting plan](docs/SELF_HOSTED_DATABASE_PLAN.md). The plan is not implemented yet; v0.1.0 remains the frozen release snapshot.
+The frozen v0.1.0 release and current deployment remain unchanged. The parallel `vnext-home-hosted` branch starts separating the browser UI, database API, public-news updater, and social collector. See [the step-by-step self-hosting plan](docs/SELF_HOSTED_DATABASE_PLAN.md).
+
+The initial vNext scaffold runs locally on port 8788 and uses its own worktree database. It serves a report-free HTML shell whose JavaScript fetches paginated report data from the API. Public-news sources and social JSONL imports use separate commands:
+
+```powershell
+npm run vnext:serve
+npm run vnext:update-public
+npm run vnext:import-social
+```
+
+This scaffold is not connected to Tailscale Funnel and does not yet include the OAuth/voting integration or production data migration. Those are later plan phases; do not repoint the live Funnel during this parallel build.
 
 ## Quick start
 
