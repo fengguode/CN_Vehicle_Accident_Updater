@@ -16,6 +16,10 @@ A local, auditable research system for collecting public reports of ADAS-related
 
 No system can guarantee collection of “all” social-media posts. Platform login walls, API limits, deletions, private groups, censorship, and ambiguous language create measurable gaps. This project does not bypass platform access controls; add official/authorized API adapters or exports for higher coverage.
 
+## Hosting roadmap
+
+The proposed migration to a home-hosted, SQLite-backed public database is documented in [the step-by-step self-hosting plan](docs/SELF_HOSTED_DATABASE_PLAN.md). The plan is not implemented yet; v0.1.0 remains the frozen release snapshot.
+
 ## Quick start
 
 Requires Node.js 22.5 or newer (Node 24 recommended). No package install is required.
