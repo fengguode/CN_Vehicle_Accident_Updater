@@ -46,6 +46,10 @@ function sameOrigin(req) {
   if (!origin) return true;
   try { return new URL(origin).host === String(req.headers.host || '').toLowerCase(); } catch { return false; }
 }
+function secureRequest(req) {
+  const forwarded = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
+  return Boolean(req.socket.encrypted) || forwarded === 'https';
+}
 function memberRequired(db, req, res) {
   const user = currentUser(db, req);
   if (!user) { json(res, { error: 'authentication_required' }, 401); return null; }
@@ -75,7 +79,7 @@ const server = http.createServer(async (req, res) => {
         const user = currentUser(db, req);
         if (user && !requireCsrf(db, req)) return json(res, { error: 'csrf_check_failed' }, 403);
         endSession(db, req);
-        return json(res, { ok: true }, 200, { 'set-cookie': clearSessionCookies });
+        return json(res, { ok: true }, 200, { 'set-cookie': clearSessionCookies(secureRequest(req)) });
       }
       if (url.pathname.endsWith('/register')) {
         let userId;
@@ -83,7 +87,7 @@ const server = http.createServer(async (req, res) => {
         catch (error) { return json(res, { error: error.message }, 400); }
         const user = db.prepare('SELECT id,username,role,active FROM users WHERE id=?').get(userId);
         const session = createSession(db, userId);
-        return json(res, { user: publicUser(user), csrf: session.csrf }, 201, { 'set-cookie': sessionCookies(session) });
+        return json(res, { user: publicUser(user), csrf: session.csrf }, 201, { 'set-cookie': sessionCookies(session, secureRequest(req)) });
       }
       const key = `${req.socket.remoteAddress || 'local'}:${String(body.username || '').toLowerCase()}`;
       const attempt = loginFailures.get(key) || { count: 0, until: 0 };
@@ -97,7 +101,7 @@ const server = http.createServer(async (req, res) => {
       }
       loginFailures.delete(key);
       const session = createSession(db, user.id);
-      return json(res, { user, csrf: session.csrf }, 200, { 'set-cookie': sessionCookies(session) });
+      return json(res, { user, csrf: session.csrf }, 200, { 'set-cookie': sessionCookies(session, secureRequest(req)) });
     }
     if (req.method === 'POST' && url.pathname === '/api/auth/invitations') {
       const user = memberRequired(db, req, res); if (!user) return;

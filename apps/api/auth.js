@@ -133,17 +133,21 @@ export function endSession(db, req) {
   if (token) db.prepare('DELETE FROM sessions WHERE token_hash=?').run(hash(token));
 }
 
-export function sessionCookies(session) {
+export function sessionCookies(session, secure = true) {
   const age = SESSION_DAYS * 86400;
+  const secureFlag = secure ? '; Secure' : '';
   return [
-    `adas_session=${encodeURIComponent(session.token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${age}`,
-    `adas_csrf=${encodeURIComponent(session.csrf)}; Path=/; Secure; SameSite=Strict; Max-Age=${age}`
+    `adas_session=${encodeURIComponent(session.token)}; Path=/; HttpOnly${secureFlag}; SameSite=Lax; Max-Age=${age}`,
+    `adas_csrf=${encodeURIComponent(session.csrf)}; Path=/${secureFlag}; SameSite=Strict; Max-Age=${age}`
   ];
 }
-export const clearSessionCookies = [
-  'adas_session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
-  'adas_csrf=; Path=/; Secure; SameSite=Strict; Max-Age=0'
-];
+export function clearSessionCookies(secure = true) {
+  const secureFlag = secure ? '; Secure' : '';
+  return [
+    `adas_session=; Path=/; HttpOnly${secureFlag}; SameSite=Lax; Max-Age=0`,
+    `adas_csrf=; Path=/${secureFlag}; SameSite=Strict; Max-Age=0`
+  ];
+}
 
 export function makeInvitation(db, user) {
   const activeInvites = db.prepare('SELECT COUNT(*) AS total FROM invitations WHERE created_by=? AND used_at IS NULL AND expires_at>?').get(user.id, new Date().toISOString()).total;
