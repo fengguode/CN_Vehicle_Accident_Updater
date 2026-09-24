@@ -121,4 +121,4 @@ npm run publish -- ..\china-adas-accident-database
 .\scripts\publish-public.ps1
 ```
 
-The publisher uses an explicit allow-list of fields, writes `data/reports.json`, `data/metadata.json`, and `site/index.html`, and leaves this working repository unchanged apart from its own database. Review the public repository's diff before committing or hosting it.
+The publisher uses an explicit allow-list of fields, writes `data/reports.json`, `data/metadata.json`, `data/svm-scores.json`, and `site/index.html` (including the static site's matching score snapshot), and leaves this working repository unchanged apart from its own database. Review the public repository's diff before committing or hosting it.
