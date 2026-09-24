@@ -12,7 +12,8 @@ export function migrateAuth(db) {
       id INTEGER PRIMARY KEY, username TEXT NOT NULL UNIQUE COLLATE NOCASE,
       password_salt TEXT NOT NULL, password_hash TEXT NOT NULL,
       role TEXT NOT NULL CHECK(role IN ('admin','member')) DEFAULT 'member',
-      active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL, created_by INTEGER REFERENCES users(id)
+      active INTEGER NOT NULL DEFAULT 1, approved INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL, created_by INTEGER REFERENCES users(id)
     );
     CREATE TABLE IF NOT EXISTS invitations (
       id INTEGER PRIMARY KEY, code_hash TEXT NOT NULL UNIQUE, created_by INTEGER NOT NULL REFERENCES users(id),
@@ -29,6 +30,8 @@ export function migrateAuth(db) {
     CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
     CREATE INDEX IF NOT EXISTS idx_invites_expiry ON invitations(expires_at);
   `);
+  try { db.exec('ALTER TABLE users ADD COLUMN approved INTEGER NOT NULL DEFAULT 1'); }
+  catch (error) { if (!/duplicate column name/i.test(error.message)) throw error; }
 }
 
 function audit(db, userId, action, detail = null) {
@@ -48,7 +51,7 @@ export function bootstrapAdmin(db, username, password) {
   db.exec('BEGIN IMMEDIATE');
   try {
     if (db.prepare("SELECT 1 FROM users WHERE role='admin'").get()) throw new Error('An admin already exists; bootstrap is disabled.');
-    const result = db.prepare('INSERT INTO users(username,password_salt,password_hash,role,created_at) VALUES(?,?,?,\'admin\',?)')
+    const result = db.prepare('INSERT INTO users(username,password_salt,password_hash,role,active,approved,created_at) VALUES(?,?,?,\'admin\',1,1,?)')
       .run(username.trim(), record.salt, record.passwordHash, new Date().toISOString());
     audit(db, Number(result.lastInsertRowid), 'bootstrap_admin');
     db.exec('COMMIT');
@@ -72,7 +75,7 @@ export function registerUser(db, username, password, inviteCode) {
   try {
     const current = db.prepare('SELECT id FROM invitations WHERE id=? AND used_at IS NULL AND expires_at>?').get(invite.id, now);
     if (!current) throw new Error('Invitation code is invalid, expired, or already used.');
-    const result = db.prepare('INSERT INTO users(username,password_salt,password_hash,role,created_at,created_by) VALUES(?,?,?,\'member\',?,?)')
+    const result = db.prepare('INSERT INTO users(username,password_salt,password_hash,role,active,approved,created_at,created_by) VALUES(?,?,?,\'member\',1,0,?,?)')
       .run(username.trim(), record.salt, record.passwordHash, now, invite.created_by);
     db.prepare('UPDATE invitations SET used_at=?,used_by=? WHERE id=?').run(now, Number(result.lastInsertRowid), invite.id);
     audit(db, Number(result.lastInsertRowid), 'register');
@@ -107,7 +110,7 @@ export function changeOwnPassword(db, userId, currentPassword, newPassword, sess
   } catch (error) { db.exec('ROLLBACK'); throw error; }
 }
 
-export function publicUser(user) { return { id: user.id, username: user.username, role: user.role, active: Boolean(user.active) }; }
+export function publicUser(user) { return { id: user.id, username: user.username, role: user.role, active: Boolean(user.active), approved: Boolean(user.approved) }; }
 
 export function createSession(db, userId) {
   const token = randomToken();
@@ -185,8 +188,8 @@ export function listInvitations(db) {
 }
 
 export function listUsers(db) {
-  return db.prepare('SELECT id,username,role,active,created_at,created_by FROM users ORDER BY id').all()
-    .map((u) => ({ ...u, active: Boolean(u.active) }));
+  return db.prepare('SELECT id,username,role,active,approved,created_at,created_by FROM users ORDER BY id').all()
+    .map((u) => ({ ...u, active: Boolean(u.active), approved: Boolean(u.approved) }));
 }
 
 export function updateUser(db, id, actorId, changes) {
@@ -194,13 +197,15 @@ export function updateUser(db, id, actorId, changes) {
   if (!user) return false;
   if (changes.role !== undefined && typeof changes.role !== 'string') throw new Error('Role must be a string.');
   if (changes.active !== undefined && typeof changes.active !== 'boolean') throw new Error('Active status must be true or false.');
+  if (changes.approved !== undefined && typeof changes.approved !== 'boolean') throw new Error('Approval status must be true or false.');
   const role = changes.role === undefined ? user.role : changes.role;
   const active = changes.active === undefined ? user.active : (changes.active ? 1 : 0);
+  const approved = changes.approved === undefined ? user.approved : (changes.approved ? 1 : 0);
   if (!['admin', 'member'].includes(role)) throw new Error('Invalid role.');
-  if (user.role === 'admin' && (role !== 'admin' || !active) && db.prepare("SELECT COUNT(*) AS n FROM users WHERE role='admin' AND active=1").get().n <= 1) throw new Error('Cannot disable or demote the last active admin.');
-  db.prepare('UPDATE users SET role=?,active=? WHERE id=?').run(role, active, id);
+  if (user.role === 'admin' && (role !== 'admin' || !active || !approved) && db.prepare("SELECT COUNT(*) AS n FROM users WHERE role='admin' AND active=1 AND approved=1").get().n <= 1) throw new Error('Cannot disable, unapprove, or demote the last admin with database access.');
+  db.prepare('UPDATE users SET role=?,active=?,approved=? WHERE id=?').run(role, active, approved, id);
   if (!active) db.prepare('DELETE FROM sessions WHERE user_id=?').run(id);
-  audit(db, actorId, 'update_user', JSON.stringify({ id, role, active: Boolean(active) }));
+  audit(db, actorId, 'update_user', JSON.stringify({ id, role, active: Boolean(active), approved: Boolean(approved) }));
   return true;
 }
 

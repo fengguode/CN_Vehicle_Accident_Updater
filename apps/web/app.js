@@ -7,6 +7,8 @@ const labels = {
   zh: { eyebrow: '中国 ADAS 事故数据库', heading: '公开报告线索', loading: '正在加载…', keyword: '关键词', brand: '品牌', cause: '事故原因', province: '省份', road: '道路类型', verification: '核验状态', sort: '排序方式', all: '全部', dateSort: '日期（最新优先）', relevanceSort: 'SVM 相关度', previous: '上一页', next: '下一页', reports: '条报告', unverified: '条未核实', latest: '最近更新', noReports: '没有符合条件的报告。', loadError: '无法加载报告，请确认家用数据库服务正在运行。', missingTitle: '未命名报告', openSource: '打开原始来源', searchPlaceholder: '标题、内容或来源', username: '用户名', password: '密码（至少 12 位）', inviteCode: '邀请码', login: '登录', register: '创建账户', needInvite: '使用邀请码注册', haveAccount: '已有账户？登录', logout: '退出登录', createInvite: '创建邀请码', userManagement: '用户管理', signedIn: '当前用户', admin: '管理员', member: '成员', accountError: '账户请求失败', inviteCreated: '邀请码（请立即分享）：', active: '启用', disabled: '停用', role: '角色', save: '保存', loginRequired: '请先登录以创建邀请码。', currentPassword: '当前密码', newPassword: '新密码', changePassword: '修改密码', passwordChanged: '密码已修改，其他登录会话已退出。' }
 };
 const text = (key) => labels[state.language][key];
+Object.assign(labels.en, { pendingApproval: 'Your account is waiting for administrator approval. The accident database is not available yet.', signInToView: 'Sign in with an approved account to view database content.', approved: 'Database access: approved', pending: 'Database access: pending', approval: 'Database approval', accountStatus: 'Account status', approve: 'Approved', unapproved: 'Pending approval' });
+Object.assign(labels.zh, { pendingApproval: '账户正在等待管理员批准，暂时无法访问事故数据库。', signInToView: '请使用已获批准的账户登录以查看数据库内容。', approved: '数据库权限：已批准', pending: '数据库权限：待批准', approval: '数据库审批', accountStatus: '账户状态', approve: '已批准', unapproved: '待批准' });
 
 async function fetchJson(url) {
   const response = await fetch(url, { headers: { accept: 'application/json' }, cache: 'no-store' });
@@ -29,14 +31,48 @@ function renderAuth() {
   const loggedIn = Boolean(state.user);
   form.hidden = loggedIn;
   $('#account-actions').hidden = !loggedIn;
-  $('#admin-panel').hidden = !loggedIn || state.user.role !== 'admin';
+  $('#create-invite').hidden = !state.user?.approved;
+  $('#admin-panel').hidden = !loggedIn || state.user.role !== 'admin' || !state.user.approved;
   $('#invite-field').hidden = state.authMode !== 'register';
   $('#auth-form [name="invite_code"]').required = state.authMode === 'register';
   $('#auth-form [name="password"]').autocomplete = state.authMode === 'register' ? 'new-password' : 'current-password';
   $('#auth-submit').textContent = text(state.authMode === 'register' ? 'register' : 'login');
   $('#auth-mode').textContent = text(state.authMode === 'register' ? 'haveAccount' : 'needInvite');
-  $('#auth-status').textContent = loggedIn ? `${text('signedIn')}: ${state.user.username} · ${text(state.user.role === 'admin' ? 'admin' : 'member')}` : '';
-  if (loggedIn && state.user.role === 'admin') loadAdminUsers();
+  $('#auth-status').textContent = loggedIn ? `${text('signedIn')}: ${state.user.username} · ${text(state.user.role === 'admin' ? 'admin' : 'member')} · ${text(state.user.approved ? 'approved' : 'pending')}` : '';
+  if (loggedIn && state.user.role === 'admin' && state.user.approved) loadAdminUsers();
+  renderDatabaseAccess();
+}
+
+function renderDatabaseAccess() {
+  const allowed = Boolean(state.user?.approved);
+  document.querySelectorAll('.database-content').forEach((element) => { element.hidden = !allowed; });
+  const notice = $('#data-access-notice');
+  notice.hidden = allowed;
+  notice.textContent = state.user ? text('pendingApproval') : text('signInToView');
+  if (!allowed) {
+    $('#reports').replaceChildren();
+    $('#page-status').textContent = '';
+    summarySnapshot = null;
+  }
+}
+
+async function loadDatabaseData() {
+  if (!state.user?.approved) return;
+  try {
+    const [summary, filters] = await Promise.all([fetchJson('/api/summary'), fetchJson('/api/filters')]);
+    summarySnapshot = summary;
+    renderSummary();
+    for (const field of ['brand', 'cause', 'province', 'road_type', 'verification_status']) {
+      const select = document.querySelector(`[data-filter="${field}"]`);
+      const selected = select.value;
+      select.replaceChildren(Object.assign(document.createElement('option'), { value: '', textContent: text('all') }));
+      for (const value of filters[field] || []) {
+        const option = document.createElement('option'); option.value = value; option.textContent = value; select.append(option);
+      }
+      select.value = selected;
+    }
+  } catch { $('#record-total').textContent = text('loadError'); }
+  await loadReports();
 }
 
 async function loadAdminUsers() {
@@ -50,15 +86,24 @@ async function loadAdminUsers() {
       const role = document.createElement('select');
       for (const value of ['member', 'admin']) { const option = document.createElement('option'); option.value = value; option.textContent = text(value); role.append(option); }
       role.value = user.role;
+      const approval = document.createElement('select');
+      approval.setAttribute('aria-label', `${text('approval')}: ${user.username}`);
+      for (const [value, label] of [['true', 'approve'], ['false', 'unapproved']]) { const option = document.createElement('option'); option.value = value; option.textContent = text(label); approval.append(option); }
+      approval.value = String(user.approved);
       const active = document.createElement('select');
+      active.setAttribute('aria-label', `${text('accountStatus')}: ${user.username}`);
       for (const [value, label] of [['true', 'active'], ['false', 'disabled']]) { const option = document.createElement('option'); option.value = value; option.textContent = text(label); active.append(option); }
       active.value = String(user.active);
       const save = document.createElement('button'); save.type = 'button'; save.textContent = text('save');
       save.addEventListener('click', async () => {
-        try { await authRequest(`/api/admin/users/${user.id}`, 'PATCH', { role: role.value, active: active.value === 'true' }); await loadAdminUsers(); }
+        try {
+          await authRequest(`/api/admin/users/${user.id}`, 'PATCH', { role: role.value, approved: approval.value === 'true', active: active.value === 'true' });
+          if (user.id === state.user?.id) { state.user.approved = approval.value === 'true'; renderAuth(); }
+          await loadAdminUsers();
+        }
         catch (error) { $('#auth-status').textContent = error.message; }
       });
-      row.append(role, active, save); panel.append(row);
+      row.append(role, approval, active, save); panel.append(row);
     }
   } catch (error) { panel.textContent = error.message; }
 }
@@ -127,6 +172,7 @@ function currentFilters() {
 }
 
 async function loadReports() {
+  if (!state.user?.approved) return;
   const list = $('#reports');
   list.replaceChildren();
   addText(list, 'p', 'Loading…');
@@ -145,29 +191,22 @@ async function loadReports() {
 async function initialize() {
   updateLanguageButton();
   await refreshAuth();
-  try {
-    const [summary, filters] = await Promise.all([fetchJson('/api/summary'), fetchJson('/api/filters')]);
-    summarySnapshot = summary;
-    renderSummary();
-    for (const field of ['brand', 'cause', 'province', 'road_type', 'verification_status']) {
-      const select = document.querySelector(`[data-filter="${field}"]`);
-      for (const value of filters[field] || []) {
-        const option = document.createElement('option');
-        option.value = value;
-        option.textContent = value;
-        select.append(option);
-      }
+  await loadDatabaseData();
+  setInterval(async () => {
+    const wasApproved = Boolean(state.user?.approved);
+    await refreshAuth();
+    if (wasApproved !== Boolean(state.user?.approved)) {
+      if (state.user?.approved) await loadDatabaseData();
+      else renderDatabaseAccess();
     }
-  } catch {
-    $('#record-total').textContent = text('loadError');
-  }
-  await loadReports();
+  }, 30_000);
 }
 
 $('#language-toggle').addEventListener('click', () => {
   state.language = state.language === 'en' ? 'zh' : 'en';
   localStorage.setItem('adas-language', state.language);
   updateLanguageButton();
+  renderAuth();
   renderSummary();
   loadReports();
 });
@@ -182,7 +221,8 @@ $('#auth-form').addEventListener('submit', async (event) => {
   try {
     const result = await authRequest(route, 'POST', payload);
     state.user = result.user; state.csrf = result.csrf; state.authMode = 'login'; formElement.reset();
-    $('#auth-status').textContent = `${text('signedIn')}: ${state.user.username}`; renderAuth();
+    renderAuth();
+    if (state.user.approved) await loadDatabaseData();
   } catch (error) { $('#auth-status').textContent = error.message; }
 });
 $('#logout').addEventListener('click', async () => {

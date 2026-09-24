@@ -50,16 +50,29 @@ function secureRequest(req) {
   const forwarded = String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase();
   return Boolean(req.socket.encrypted) || forwarded === 'https';
 }
-function memberRequired(db, req, res) {
+function signedInRequired(db, req, res) {
   const user = currentUser(db, req);
   if (!user) { json(res, { error: 'authentication_required' }, 401); return null; }
   if (!requireCsrf(db, req)) { json(res, { error: 'csrf_check_failed' }, 403); return null; }
+  return user;
+}
+function memberRequired(db, req, res) {
+  const user = signedInRequired(db, req, res);
+  if (!user) return null;
+  if (!user.approved) { json(res, { error: 'admin_approval_required' }, 403); return null; }
+  return user;
+}
+function approvedRequired(db, req, res) {
+  const user = currentUser(db, req);
+  if (!user) { json(res, { error: 'authentication_required' }, 401); return null; }
+  if (!user.approved) { json(res, { error: 'admin_approval_required' }, 403); return null; }
   return user;
 }
 function adminRequired(db, req, res) {
   const user = currentUser(db, req);
   if (!user) { json(res, { error: 'authentication_required' }, 401); return null; }
   if (user.role !== 'admin') { json(res, { error: 'admin_required' }, 403); return null; }
+  if (!user.approved) { json(res, { error: 'admin_approval_required' }, 403); return null; }
   if (!requireCsrf(db, req)) { json(res, { error: 'csrf_check_failed' }, 403); return null; }
   return user;
 }
@@ -85,7 +98,7 @@ const server = http.createServer(async (req, res) => {
         let userId;
         try { userId = registerUser(db, body.username, body.password, body.invite_code); }
         catch (error) { return json(res, { error: error.message }, 400); }
-        const user = db.prepare('SELECT id,username,role,active FROM users WHERE id=?').get(userId);
+        const user = db.prepare('SELECT id,username,role,active,approved FROM users WHERE id=?').get(userId);
         const session = createSession(db, userId);
         return json(res, { user: publicUser(user), csrf: session.csrf }, 201, { 'set-cookie': sessionCookies(session, secureRequest(req)) });
       }
@@ -111,21 +124,21 @@ const server = http.createServer(async (req, res) => {
       return json(res, invitation, 201);
     }
     if (req.method === 'POST' && url.pathname === '/api/auth/password') {
-      const user = memberRequired(db, req, res); if (!user) return;
+      const user = signedInRequired(db, req, res); if (!user) return;
       const body = await readJson(req);
       try { changeOwnPassword(db, user.id, body.current_password, body.new_password, cookies(req).adas_session); }
       catch (error) { return json(res, { error: error.message }, 400); }
       return json(res, { ok: true });
     }
     if (req.method === 'GET' && url.pathname === '/api/auth/invitations') {
-      const user = currentUser(db, req);
-      if (!user) return json(res, { error: 'authentication_required' }, 401);
+      const user = approvedRequired(db, req, res); if (!user) return;
       return json(res, { data: listInvitations(db) });
     }
     if (req.method === 'GET' && url.pathname === '/api/admin/users') {
       const user = currentUser(db, req);
       if (!user) return json(res, { error: 'authentication_required' }, 401);
       if (user.role !== 'admin') return json(res, { error: 'admin_required' }, 403);
+      if (!user.approved) return json(res, { error: 'admin_approval_required' }, 403);
       return json(res, { data: listUsers(db) });
     }
     const userMatch = url.pathname.match(/^\/api\/admin\/users\/(\d+)$/);
@@ -138,9 +151,12 @@ const server = http.createServer(async (req, res) => {
       return json(res, { ok: true });
     }
     if (req.method === 'GET' && url.pathname === '/health') return json(res, { ok: true, service: 'adas-vnext' });
-    if (req.method === 'GET' && url.pathname === '/api/reports') return json(res, listReports(db, url.searchParams));
-    if (req.method === 'GET' && url.pathname === '/api/filters') return json(res, getFilterOptions(db));
-    if (req.method === 'GET' && url.pathname === '/api/summary') return json(res, getSummary(db));
+    if (req.method === 'GET' && ['/api/reports', '/api/filters', '/api/summary'].includes(url.pathname)) {
+      const user = approvedRequired(db, req, res); if (!user) return;
+      if (url.pathname === '/api/reports') return json(res, listReports(db, url.searchParams));
+      if (url.pathname === '/api/filters') return json(res, getFilterOptions(db));
+      return json(res, getSummary(db));
+    }
     if (req.method !== 'GET') return json(res, { error: 'method_not_allowed' }, 405);
     const asset = assets.get(url.pathname);
     if (!asset) return send(res, 404, 'Not found', 'text/plain; charset=utf-8');

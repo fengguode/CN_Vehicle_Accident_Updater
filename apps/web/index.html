@@ -41,11 +41,12 @@
         <div id="admin-users"></div>
       </section>
     </section>
-    <section class="summary" aria-live="polite">
+    <section id="data-access-notice" class="access-notice" aria-live="polite" hidden></section>
+    <section class="summary database-content" aria-live="polite">
       <span id="record-total" data-i18n="loading">Loading reports…</span>
       <span id="latest-collection"></span>
     </section>
-    <section class="filters" aria-label="Filter reports">
+    <section class="filters database-content" aria-label="Filter reports">
       <label><span data-i18n="keyword">Keyword</span> <input id="query" type="search" placeholder="Title, content, source"></label>
       <label><span data-i18n="brand">Brand</span> <select data-filter="brand"><option value="" data-i18n="all">All</option></select></label>
       <label><span data-i18n="cause">Cause</span> <select data-filter="cause"><option value="" data-i18n="all">All</option></select></label>
@@ -59,8 +60,8 @@
         </select>
       </label>
     </section>
-    <section id="reports" class="reports" aria-live="polite"></section>
-    <nav class="pagination" aria-label="Report pages">
+    <section id="reports" class="reports database-content" aria-live="polite"></section>
+    <nav class="pagination database-content" aria-label="Report pages">
       <button id="previous" type="button" disabled data-i18n="previous">Previous</button>
       <span id="page-status"></span>
       <button id="next" type="button" disabled data-i18n="next">Next</button>

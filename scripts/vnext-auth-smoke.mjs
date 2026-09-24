@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import { openDb } from '../src/db.js';
 
-const baseUrl = 'http://127.0.0.1:8788';
+const baseUrl = process.env.ADAS_TEST_BASE_URL || 'http://127.0.0.1:8788';
 const adminPassword = process.env.ADAS_TEST_ADMIN_PASSWORD;
 if (!adminPassword) throw new Error('Set ADAS_TEST_ADMIN_PASSWORD for the local auth smoke run.');
 
@@ -100,13 +100,31 @@ try {
     method: 'POST', body: { username: testUsername, password: memberInitialPassword, invite_code: invite.code }, jar: memberSession, expected: 201
   });
   assert.equal(registration.user.role, 'member');
+  assert.equal(registration.user.approved, false);
   memberId = registration.user.id;
   jars.push(memberSession);
   assert.equal((await api('/api/auth/me', { jar: memberSession })).user.username, testUsername);
+  assert.equal((await api('/api/auth/me', { jar: memberSession })).user.approved, false);
+  for (const route of ['/api/reports', '/api/filters', '/api/summary']) await api(route, { jar: memberSession, expected: 403 });
+  await api('/api/auth/invitations', { method: 'POST', jar: memberSession, body: {}, expected: 403 });
   await api('/api/auth/register', {
     method: 'POST', body: { username: `${testUsername}_again`, password: memberInitialPassword, invite_code: invite.code }, jar: {}, expected: 400
   });
   checks.push('invitation creation, registration, immediate sign-in, and one-use enforcement');
+
+  await adminUserChange(adminSession, memberId, { approved: true });
+  assert.equal((await api('/api/auth/me', { jar: memberSession })).user.approved, true);
+  for (const route of ['/api/reports', '/api/filters', '/api/summary']) await api(route, { jar: memberSession });
+  const memberInvite = await api('/api/auth/invitations', { method: 'POST', jar: memberSession, body: {}, expected: 201 });
+  inviteId = memberInvite.id;
+  await adminUserChange(adminSession, memberId, { approved: false });
+  assert.equal((await api('/api/auth/me', { jar: memberSession })).user.approved, false);
+  for (const route of ['/api/reports', '/api/filters', '/api/summary']) await api(route, { jar: memberSession, expected: 403 });
+  await adminUserChange(adminSession, memberId, { approved: true });
+  for (const route of ['/api/reports', '/api/filters', '/api/summary']) await api(route, { jar: memberSession });
+  const adminIdForGate = adminLogin.result.user.id;
+  await adminUserChange(adminSession, adminIdForGate, { approved: false }, 400);
+  checks.push('pending registration is blocked from all database APIs; admin grant, revoke, and re-grant take effect immediately');
 
   await changePassword(memberSession, memberInitialPassword, memberChangedPassword);
   await login(testUsername, memberInitialPassword, 401);
@@ -116,7 +134,7 @@ try {
   checks.push('member self-service password change');
 
   const users = await api('/api/admin/users', { jar: adminSession });
-  assert.ok(users.data.some((user) => user.id === memberId && user.active));
+  assert.ok(users.data.some((user) => user.id === memberId && user.active && user.approved));
   await adminUserChange(adminSession, memberId, { active: false });
   assert.equal((await api('/api/auth/me', { jar: memberChangedLogin.jar })).user, null);
   await login(testUsername, memberChangedPassword, 401);

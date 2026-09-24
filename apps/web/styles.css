@@ -15,6 +15,7 @@ main { padding-bottom: 2rem; }
 #auth-form label { display: grid; gap: .25rem; color: #506174; font-size: .85rem; }
 #auth-form input { border: 1px solid #c6d1db; border-radius: 7px; padding: .5rem; }
 #auth-status { margin-bottom: .5rem; color: #506174; }
+.access-notice { margin: 1rem 0; padding: 1rem; border: 1px solid #e2bf72; border-radius: 12px; background: #fff9e9; color: #654b10; }
 #account-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .7rem; }
 #password-form { display: flex; align-items: end; flex-wrap: wrap; gap: .6rem; width: 100%; margin-top: .5rem; }
 #password-form label { display: grid; gap: .25rem; color: #506174; font-size: .85rem; }
@@ -24,6 +25,7 @@ main { padding-bottom: 2rem; }
 #admin-panel h2 { font-size: 1rem; }
 .user-row { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; padding: .4rem 0; border-top: 1px solid #edf0f3; }
 .user-row span { min-width: 10rem; }
+.user-row select { max-width: 13rem; border: 1px solid #c6d1db; border-radius: 7px; padding: .45rem; background: white; color: #182331; }
 .summary { display: flex; justify-content: space-between; gap: 1rem; margin: 1rem 0; padding: .75rem 1rem; color: #506174; }
 .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .75rem; padding: 1rem; }
 .filters label { display: grid; gap: .25rem; color: #506174; font-size: .85rem; }
