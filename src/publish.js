@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { openDb } from './db.js';
 import { englishDescription, englishTitle } from './english.js';
+import { loadSvm, scoreSvm } from './svm.js';
 
 const publicRepo = path.resolve(process.argv[2] || '../china-adas-accident-database');
 const outputDir = path.join(publicRepo, 'data');
@@ -13,6 +14,7 @@ fs.mkdirSync(siteDataDir, { recursive: true });
 
 const db = openDb();
 const rows = db.prepare('SELECT * FROM reports ORDER BY COALESCE(published_at,collected_at) DESC, id DESC').all();
+const svmModel = loadSvm();
 function redactPublicText(value) {
   return String(value ?? '')
     .replace(/(?<!\d)(?:\+?86[ \t-]?)?1[3-9](?:[ \t-]?\d){9}(?!\d)/g, '[phone redacted]')
@@ -26,7 +28,9 @@ function sanitizePublicRecord(record) {
       : value
   ]));
 }
-const reports = rows.map((row) => sanitizePublicRecord({
+const reports = rows.map((row) => {
+  const labels = JSON.parse(row.labels_json || '{}');
+  return sanitizePublicRecord({
   id: row.id, fingerprint: row.fingerprint, source_url: row.source_url, discovery_url: row.discovery_url, publisher_name: row.publisher_name, source_name: row.source_name,
   platform: row.platform, title: row.title, title_zh: row.title, title_en: row.title_en || englishTitle(row), title_zh_short: abstract(row.title, 140), title_en_short: abstract(row.title_en || englishTitle(row), 140), content: row.content, content_zh: row.content, content_en: row.content_en || row.english_description || englishDescription(row), summary_zh: abstract(row.content), summary_en: abstract(row.content_en || row.english_description || englishDescription(row)), author: row.author,
   published_at: row.published_at, collected_at: row.collected_at, event_date: row.event_date,
@@ -34,9 +38,17 @@ const reports = rows.map((row) => sanitizePublicRecord({
   adas_mode: row.adas_mode, road_type: row.road_type, severity: row.severity,
   province: row.province, city: row.city, injuries: row.injuries, fatalities: row.fatalities,
   verification_status: row.verification_status, relevance_score: row.relevance_score,
-  labels: JSON.parse(row.labels_json || '{}'), review_notes: row.review_notes,
+  labels, review_notes: row.review_notes,
   english_description: row.english_description || englishDescription(row), description_en: row.content_en || row.english_description || englishDescription(row), english_description_source: row.english_description_source || 'machine_heuristic_v1'
-}));
+  });
+});
+const svmScores = svmModel ? rows.map((row) => {
+  const score = scoreSvm(svmModel, `${row.title} ${row.content}`);
+  return { fingerprint: row.fingerprint, score: Number(score.toFixed(6)), classification: score >= 0 ? 'relevant' : 'not_relevant' };
+}) : [];
+const svmScoresJson = JSON.stringify(svmScores, null, 2) + '\n';
+fs.writeFileSync(path.join(outputDir, 'svm-scores.json'), svmScoresJson);
+fs.writeFileSync(path.join(siteDataDir, 'svm-scores.json'), svmScoresJson);
 const generatedAt = new Date().toISOString();
 const metadata = { schema_version: '1.1.0', generated_at: generatedAt, record_count: reports.length,
   repository_role: 'Public, sanitized publication of leads discovered by china-adas-accident-methods',
