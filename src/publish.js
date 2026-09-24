@@ -30,9 +30,10 @@ function sanitizePublicRecord(record) {
 }
 const reports = rows.map((row) => {
   const labels = JSON.parse(row.labels_json || '{}');
+  const preserveSourceStart = row.english_description_source === 'human_summary_v1';
   return sanitizePublicRecord({
   id: row.id, fingerprint: row.fingerprint, source_url: row.source_url, discovery_url: row.discovery_url, publisher_name: row.publisher_name, source_name: row.source_name,
-  platform: row.platform, title: row.title, title_zh: row.title, title_en: row.title_en || englishTitle(row), title_zh_short: abstract(row.title, 140), title_en_short: abstract(row.title_en || englishTitle(row), 140), content: row.content, content_zh: row.content, content_en: row.content_en || row.english_description || englishDescription(row), summary_zh: abstract(row.content), summary_en: abstract(row.content_en || row.english_description || englishDescription(row)), author: row.author,
+  platform: row.platform, title: row.title, title_zh: row.title, title_en: row.title_en || englishTitle(row), title_zh_short: abstract(row.title, 140, preserveSourceStart), title_en_short: abstract(row.title_en || englishTitle(row), 140, preserveSourceStart), content: row.content, content_zh: row.content, content_en: row.content_en || row.english_description || englishDescription(row), summary_zh: abstract(row.content, preserveSourceStart ? 360 : 280, preserveSourceStart), summary_en: abstract(row.content_en || row.english_description || englishDescription(row), preserveSourceStart ? 360 : 280, preserveSourceStart), author: row.author,
   published_at: row.published_at, collected_at: row.collected_at, event_date: row.event_date,
   brand: row.brand, model: row.model, cause: row.cause, cause_confidence: row.cause_confidence,
   adas_mode: row.adas_mode, road_type: row.road_type, severity: row.severity,
@@ -62,10 +63,11 @@ fs.writeFileSync(path.join(outputDir, 'metadata.json'), JSON.stringify(metadata,
 function esc(value) { return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
 const voteApiUrl = (process.env.VOTE_API_URL || '').replace(/\/+$/, '');
 if (voteApiUrl && !/^https:\/\//.test(voteApiUrl)) throw new Error('VOTE_API_URL must be an HTTPS URL');
-function abstract(value, limit = 360) {
+function abstract(value, limit = 280, preserveSourceStart = false) {
   let text = String(value || '').replace(/\s+/g, ' ').replace(/^c\s+/i, '').replace(/\s+(?:播放视频|Play video|https?:\/\/).*/i, '').trim();
+  if (!preserveSourceStart) text = text.replace(/^[^#]{0,160}(?=#)/, '');
   const marker = text.search(/多亏|辅助驾驶|智驾|AEB|自动驾驶|事故|追尾|碰撞|险情|driver[- ]assistance|smart driving|automatic emergency braking|rear-end collision|crash|accident|thanks to/i);
-  if (marker > 120 && marker < 300) text = text.slice(marker).trim();
+  if (!preserveSourceStart && marker > 0 && marker < 180) text = text.slice(marker).trim();
   if (!text) return '';
   const sentences = text.match(/[^.!?。！？]+[.!?。！？]?/g) || [text];
   let result = '';
