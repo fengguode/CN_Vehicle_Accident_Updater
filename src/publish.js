@@ -62,10 +62,10 @@ fs.writeFileSync(path.join(outputDir, 'metadata.json'), JSON.stringify(metadata,
 function esc(value) { return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c])); }
 const voteApiUrl = (process.env.VOTE_API_URL || '').replace(/\/+$/, '');
 if (voteApiUrl && !/^https:\/\//.test(voteApiUrl)) throw new Error('VOTE_API_URL must be an HTTPS URL');
-function abstract(value, limit = 280) {
-  let text = String(value || '').replace(/\s+/g, ' ').replace(/^c\s+/i, '').replace(/^[^#]{0,160}(?=#)/, '').replace(/\s+(?:播放视频|Play video|https?:\/\/).*/i, '').trim();
+function abstract(value, limit = 360) {
+  let text = String(value || '').replace(/\s+/g, ' ').replace(/^c\s+/i, '').replace(/\s+(?:播放视频|Play video|https?:\/\/).*/i, '').trim();
   const marker = text.search(/多亏|辅助驾驶|智驾|AEB|自动驾驶|事故|追尾|碰撞|险情|driver[- ]assistance|smart driving|automatic emergency braking|rear-end collision|crash|accident|thanks to/i);
-  if (marker > 0 && marker < 180) text = text.slice(marker).trim();
+  if (marker > 120 && marker < 300) text = text.slice(marker).trim();
   if (!text) return '';
   const sentences = text.match(/[^.!?。！？]+[.!?。！？]?/g) || [text];
   let result = '';

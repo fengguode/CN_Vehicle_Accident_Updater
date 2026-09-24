@@ -34,7 +34,8 @@ export async function runCollection(options = {}) {
       for (const item of items) {
         const report = normalizeReport(item, source);
         const svmScore = scoreSvm(svm, `${report.title} ${report.content}`);
-        if (svmScore !== null && svmScore < 0) { stats.rejected++; continue; }
+        const sourceReviewed = source.type === 'jsonl-inbox' && item.reviewed_relevance === true;
+        if (svmScore !== null && svmScore < 0 && !sourceReviewed) { stats.rejected++; continue; }
         const translated = await translateDescription(`${report.title}. ${report.content}`);
         if (translated) { report.english_description = translated; report.english_description_source = 'configured_translation_endpoint'; }
         if (!report.title || report.relevance_score < 0.55) { stats.rejected++; continue; }

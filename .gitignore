@@ -8,3 +8,4 @@ data/inbox/*.processed
 .secrets/
 node_modules/
 coverage/
+.playwright-cli/

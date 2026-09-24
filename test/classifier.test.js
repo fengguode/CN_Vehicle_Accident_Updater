@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { classify } from '../src/classifier.js';
-import { fingerprint, cleanUrl } from '../src/normalize.js';
+import { fingerprint, cleanUrl, normalizeReport } from '../src/normalize.js';
 import { parseRss } from '../src/rss.js';
 
 test('classifies Chinese ADAS accident text across perspectives', () => {
@@ -21,4 +21,21 @@ test('classifies Li Auto owner report with lane drift and delayed intervention',
   const value = classify({ title: '理想车主启用辅助驾驶撞车索赔被认定全责', content: '四川车辆左偏越实线，撞上对向车后视镜，驾驶员未及时干预' });
   assert.equal(value.brand, 'Li Auto'); assert.equal(value.province, '四川'); assert.equal(value.adas_mode, 'active');
   assert.equal(value.cause, 'lane_or_steering'); assert.match(value.labels_json, /driver_misuse_or_inattention/);
+});
+test('recognizes drowsy highway rollover and automatic-parking scrape language', () => {
+  const highway = classify({ title: '智驾侧翻', content: '江西泉南高速上司机打瞌睡犯困，车辆偏离车道撞上防撞桶，事故发生在该路段' });
+  assert.equal(highway.road_type, 'highway');
+  assert.equal(highway.cause, 'driver_misuse_or_inattention');
+  const parking = classify({ title: '蔚来ES6自动泊车蹭到柱子', content: '地库内剐蹭，反光镜损毁、漆面刮伤' });
+  assert.equal(parking.brand, 'NIO');
+  assert.equal(parking.road_type, 'parking');
+  assert.equal(parking.severity, 'property_damage');
+  assert.ok(parking.relevance_score >= 0.9);
+});
+test('preserves reviewed bilingual fields without treating relevance as incident verification', () => {
+  const report = normalizeReport({ title: '自动泊车剐蹭', title_en: 'Automatic-parking scrape', content: '车主称自动泊车蹭到柱子', content_en: 'The owner reported a scrape.', url: 'https://weibo.com/1/Rabc', adas_mode: 'claimed_active', reviewed_relevance: true });
+  assert.equal(report.title_en, 'Automatic-parking scrape');
+  assert.equal(report.content_en, 'The owner reported a scrape.');
+  assert.equal(report.adas_mode, 'claimed_active');
+  assert.equal(report.verification_status, 'unverified');
 });
