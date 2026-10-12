@@ -27,8 +27,8 @@
     "vnext:test-https": "node scripts/vnext-https-smoke.mjs",
     "vnext:daily": "node scripts/vnext-daily.mjs",
     "vnext:backup": "node scripts/vnext-backup.mjs",
-    "vnext:update-public": "node apps/updater/run-public.js",
-    "vnext:import-social": "node apps/social-collector/import-inbox.js",
+    "vnext:update-public": "node scripts/vnext-locked-command.mjs public",
+    "vnext:import-social": "node scripts/vnext-locked-command.mjs social",
     "stats": "node src/cli.js stats",
     "test": "node --test"
   },

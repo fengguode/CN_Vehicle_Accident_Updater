@@ -7,7 +7,8 @@ import { normalizeReport } from './normalize.js';
 import { translateDescription } from './english.js';
 import { collectWeiboCli } from './weibo-cli.js';
 import { enrichWeiboItems } from './weibo-web.js';
-import { loadSvm, scoreSvm } from './svm.js';
+import { scoreSvm } from './svm.js';
+import { summarizeWeiboSourceQuality } from './source-quality.js';
 
 export async function runCollection(options = {}) {
   const db = options.db || openDb();
@@ -15,8 +16,9 @@ export async function runCollection(options = {}) {
   const runId = beginRun(db);
   const stats = { fetched: 0, inserted: 0, duplicates: 0, rejected: 0 };
   const errors = [];
-  const svm = loadSvm(db);
-  const svmModelId = db.prepare('SELECT id FROM svm_models ORDER BY id DESC LIMIT 1').get()?.id || null;
+  const sourceQuality = {};
+  const modelRow = db.prepare('SELECT id,algorithm,weights_json,bias FROM traffic_svm_models ORDER BY id DESC LIMIT 1').get();
+  const svm = modelRow ? { algorithm: modelRow.algorithm, weights: JSON.parse(modelRow.weights_json), bias: modelRow.bias } : null;
   const sourceIds = options.sourceIds ? new Set(options.sourceIds) : null;
   const sources = readJson('config/sources.json').sources.filter((source) => source.enabled && (!sourceIds || sourceIds.has(source.id)));
   for (const source of sources) {
@@ -32,18 +34,18 @@ export async function runCollection(options = {}) {
         items = result.items; adapterState = JSON.stringify({ cursor: result.nextCursor, overlap_since: result.overlapSince });
       }
       if (source.enrich_weibo_web && items.length) items = (await enrichWeiboItems(items, { maxItems: source.max_enrichments || 5, delayMs: source.enrich_delay_ms, timeoutMs: source.enrich_timeout_ms })).items;
+      const quality = source.platform === 'weibo_web_index' ? summarizeWeiboSourceQuality(items) : null;
       stats.fetched += items.length;
       const accepted = [];
       for (const item of items) {
         const report = normalizeReport(item, source);
         const svmScore = scoreSvm(svm, `${report.title} ${report.content}`);
-        report.svm_score = svmScore;
-        report.svm_model_id = svmModelId;
+        report.traffic_svm_score = svmScore;
+        report.traffic_svm_model_id = modelRow?.id || null;
         const sourceReviewed = source.type === 'jsonl-inbox' && item.reviewed_relevance === true;
-        if (svmScore !== null && svmScore < 0 && !sourceReviewed) { stats.rejected++; continue; }
         const translated = await translateDescription(`${report.title}. ${report.content}`);
         if (translated) { report.english_description = translated; report.english_description_source = 'configured_translation_endpoint'; }
-        if (!report.title || report.relevance_score < 0.55) { stats.rejected++; continue; }
+        if (!report.title || (!sourceReviewed && report.relevance_score < 0.65)) { stats.rejected++; continue; }
         accepted.push(report);
       }
       db.exec('BEGIN IMMEDIATE');
@@ -57,6 +59,7 @@ export async function runCollection(options = {}) {
           VALUES(?,?,?,?,?,?) ON CONFLICT(source_id) DO UPDATE SET last_success_at=excluded.last_success_at,last_error=NULL,last_item_at=excluded.last_item_at,state_json=COALESCE(excluded.state_json,source_state.state_json),updated_at=excluded.updated_at`)
           .run(source.id, new Date().toISOString(), null, items[0]?.published_at || null, adapterState, new Date().toISOString());
         db.exec('COMMIT');
+        if (quality) sourceQuality[source.id] = quality;
         stats.inserted += inserted;
         stats.duplicates += duplicates;
       } catch (error) { db.exec('ROLLBACK'); throw error; }
@@ -69,5 +72,5 @@ export async function runCollection(options = {}) {
   }
   finishRun(db, runId, stats, errors);
   if (ownDb) db.close();
-  return { runId, ...stats, errors };
+  return { runId, ...stats, errors, source_quality: sourceQuality };
 }

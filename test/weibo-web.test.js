@@ -26,3 +26,13 @@ test('stops on visitor wall and caps five enrichments', async () => {
   const result = await enrichWeiboItems(items, { cookie: 'SENSITIVE=1', delayMs: 0, fetch: async () => { calls++; return new Response('<html>passport.weibo.com visitor system captcha</html>', { status: 200 }); } });
   assert.equal(calls, 5); assert.equal(result.enriched, 0); assert.equal(result.attempted, 5);
 });
+
+test('does not replace a longer feed description with shorter page metadata', async () => {
+  const original = '公开的微博原文包含更多细节。'.repeat(15);
+  const result = await enrichWeiboArticle({ source_url: 'https://weibo.com/u/long', content: original }, {
+    cookie: 'TEST=1', delayMs: 0, fetch: async () => new Response(html, { status: 200 })
+  });
+  assert.equal(result.enriched, false);
+  assert.equal(result.reason, 'not_longer_than_feed');
+  assert.equal(result.item.content, original);
+});

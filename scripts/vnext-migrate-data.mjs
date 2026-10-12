@@ -4,7 +4,6 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { openDb } from '../src/db.js';
 import { migrateAuth } from '../apps/api/auth.js';
-import { refreshVotesAndSvm } from '../apps/api/votes-repository.js';
 
 const [backupFolderArg, targetArg] = process.argv.slice(2);
 if (!backupFolderArg || !targetArg) throw new Error('Usage: node scripts/vnext-migrate-data.mjs BACKUP_FOLDER TARGET_DB');
@@ -68,6 +67,5 @@ try {
       .run(manifest.files.reports.sha256, new Date().toISOString(), sourceRows.length, voteRows.length);
     target.exec('COMMIT');
   } catch (error) { target.exec('ROLLBACK'); throw error; }
-  const model = (insertedReports || insertedVotes || !target.prepare('SELECT 1 FROM svm_models LIMIT 1').get()) ? refreshVotesAndSvm(target) : null;
-  console.log(JSON.stringify({ target: targetPath, source_reports: sourceRows.length, inserted_reports: insertedReports, source_votes: voteRows.length, inserted_votes: insertedVotes, total_reports: target.prepare('SELECT COUNT(*) AS n FROM reports').get().n, total_votes: target.prepare('SELECT COUNT(*) AS n FROM review_votes').get().n, source_runs: source.prepare('SELECT COUNT(*) AS n FROM runs').get().n, svm: model }));
+  console.log(JSON.stringify({ target: targetPath, source_reports: sourceRows.length, inserted_reports: insertedReports, source_votes: voteRows.length, inserted_votes: insertedVotes, total_reports: target.prepare('SELECT COUNT(*) AS n FROM reports').get().n, total_votes: target.prepare('SELECT COUNT(*) AS n FROM review_votes').get().n, source_runs: source.prepare('SELECT COUNT(*) AS n FROM runs').get().n, traffic_ratings: target.prepare('SELECT COUNT(*) AS n FROM traffic_votes').get().n }));
 } finally { source.close(); voteSource.close(); target.close(); }

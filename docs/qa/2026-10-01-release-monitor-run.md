@@ -1,0 +1,9 @@
+# Release monitor run (2026-10-01)
+
+- **Target:** daily heartbeat `track-project-status-and-releases`; canonical task `OPS-RELEASE-MONITOR-01`.
+- **Backlog review:** read `updater-vnext/docs/PROJECT_BACKLOG.md`. Current P1 statuses remain open, including `LIVE-FEEDBACK-01` (isolated environment is ready; live 8788 activation/readiness remains distinct) and the release readiness **HOLD**. Daily monitor item remains active.
+- **Release source checked:** official [GitHub Releases page](https://github.com/fengguode/CN_Vehicle_Accident_Updater/releases) and [latest-release redirect](https://github.com/fengguode/CN_Vehicle_Accident_Updater/releases/latest).
+- **Observed latest:** GitHub labels `v0.1.0 — China ADAS Incident Updater` as Latest. `/releases/latest` redirects to tag `v0.1.0`; the release page lists the tag commit `ad6fc90`, release date 2026-09-24, and notes describing the initial versioned release, including Weibo discovery, direct-source bilingual records, community vote import, and the SVM trained from 72 votes. The release note calls the tag immutable. No newer release is listed.
+- **Compatibility/guidance:** `updater-vnext/README.md` states that v0.1.0 is frozen and identifies the home-hosted `vnext-home-hosted` service as the active vNext system. `docs/SELF_HOSTED_DATABASE_PLAN.md` records v0.1.0 as the release baseline and instructs that future application changes use normal commits and new releases. Because latest is the already documented baseline, there is no new software version to stage or activate. No compatibility/preflight/update work was needed.
+- **Result:** pass, no new release. No productive runtime, scheduled task, account, or database was modified. No release asset was downloaded or installed.
+- **Git evidence:** read-only Git check reports `updater-vnext` branch `vnext-home-hosted`, HEAD `daa5b58`, ahead 18; existing shared changes remain in the worktree. Backlog and this QA note are uncommitted; no commit/push.

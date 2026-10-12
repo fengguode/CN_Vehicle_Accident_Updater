@@ -94,6 +94,60 @@ export function migrate(db) {
       algorithm TEXT NOT NULL, samples INTEGER NOT NULL,
       weights_json TEXT NOT NULL, bias REAL NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS traffic_votes (
+      fingerprint TEXT NOT NULL REFERENCES reports(fingerprint),
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      vote TEXT NOT NULL CHECK (vote IN ('relevant','not_relevant')),
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (fingerprint, user_id)
+    );
+    CREATE TABLE IF NOT EXISTS traffic_rating_receipts (
+      fingerprint TEXT NOT NULL REFERENCES reports(fingerprint),
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      first_received_at TEXT NOT NULL,
+      PRIMARY KEY (fingerprint, user_id)
+    );
+    CREATE TABLE IF NOT EXISTS traffic_svm_models (
+      id INTEGER PRIMARY KEY, trained_at TEXT NOT NULL,
+      algorithm TEXT NOT NULL, samples INTEGER NOT NULL,
+      weights_json TEXT NOT NULL, bias REAL NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS traffic_svm_state (
+      id INTEGER PRIMARY KEY CHECK (id=1),
+      pending_new_ratings INTEGER NOT NULL DEFAULT 0 CHECK (pending_new_ratings >= 0),
+      refresh_requested INTEGER NOT NULL DEFAULT 0 CHECK (refresh_requested IN (0,1)),
+      updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS feedback_requests (
+      id TEXT PRIMARY KEY,
+      submitter_id INTEGER NOT NULL REFERENCES users(id),
+      type TEXT NOT NULL CHECK(type IN ('Issue','Feature')),
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      context TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL CHECK(status IN ('Submitted','Under review','Needs information','Added to backlog','In progress','Complete','Blocked','Not planned','Duplicate')) DEFAULT 'Submitted',
+      priority TEXT CHECK(priority IS NULL OR priority IN ('low','normal','high','urgent')),
+      public_update TEXT NOT NULL DEFAULT '',
+      internal_notes TEXT NOT NULL DEFAULT '',
+      backlog_ids TEXT NOT NULL DEFAULT '[]',
+      duplicate_of TEXT REFERENCES feedback_requests(id),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_feedback_submitter_updated ON feedback_requests(submitter_id, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_feedback_status_updated ON feedback_requests(status, updated_at DESC);
+    CREATE TABLE IF NOT EXISTS feedback_events (
+      id INTEGER PRIMARY KEY,
+      request_id TEXT NOT NULL REFERENCES feedback_requests(id),
+      actor_id INTEGER NOT NULL REFERENCES users(id),
+      action TEXT NOT NULL,
+      status TEXT NOT NULL,
+      public_update TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_feedback_events_request ON feedback_events(request_id, id);
+    CREATE TRIGGER IF NOT EXISTS feedback_events_no_update BEFORE UPDATE ON feedback_events BEGIN SELECT RAISE(ABORT, 'feedback events are append-only'); END;
+    CREATE TRIGGER IF NOT EXISTS feedback_events_no_delete BEFORE DELETE ON feedback_events BEGIN SELECT RAISE(ABORT, 'feedback events are append-only'); END;
   `);
   for (const statement of [
     'ALTER TABLE reports ADD COLUMN discovery_url TEXT',
@@ -108,11 +162,52 @@ export function migrate(db) {
     , 'ALTER TABLE reports ADD COLUMN svm_score REAL'
     , 'ALTER TABLE reports ADD COLUMN svm_model_id INTEGER'
     , 'ALTER TABLE reports ADD COLUMN publisher_name TEXT'
+    , 'ALTER TABLE reports ADD COLUMN traffic_svm_score REAL'
+    , 'ALTER TABLE reports ADD COLUMN traffic_svm_model_id INTEGER'
+    , "ALTER TABLE reports ADD COLUMN video_status TEXT NOT NULL DEFAULT 'unknown' CHECK(video_status IN ('present','absent','unknown'))"
+    , 'ALTER TABLE reports ADD COLUMN video_thumbnail_url TEXT'
+    , "ALTER TABLE reports ADD COLUMN media_review_status TEXT NOT NULL DEFAULT 'pending' CHECK(media_review_status IN ('pending','approved','rejected'))"
+    , 'ALTER TABLE reports ADD COLUMN media_reviewed_by TEXT'
+    , 'ALTER TABLE reports ADD COLUMN media_reviewed_at TEXT'
     , 'ALTER TABLE source_state ADD COLUMN state_json TEXT'
   ]) { try { db.exec(statement); } catch (error) { if (!/duplicate column name/i.test(error.message)) throw error; } }
   db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(1,?)').run(new Date().toISOString());
   db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(3,?)').run(new Date().toISOString());
   db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(4,?)').run(new Date().toISOString());
+  db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(5,?)').run(new Date().toISOString());
+  db.prepare('INSERT OR IGNORE INTO traffic_svm_state(id,updated_at) VALUES(1,?)').run(new Date().toISOString());
+  db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(6,?)').run(new Date().toISOString());
+  db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(7,?)').run(new Date().toISOString());
+  db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(8,?)').run(new Date().toISOString());
+  db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(10,?)').run(new Date().toISOString());
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS media_review_events (
+      id INTEGER PRIMARY KEY,
+      report_id INTEGER NOT NULL REFERENCES reports(id),
+      actor_id INTEGER NOT NULL REFERENCES users(id),
+      action TEXT NOT NULL CHECK(action IN ('approve','reject','remove')),
+      old_state TEXT NOT NULL,
+      new_state TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_media_review_events_report ON media_review_events(report_id,id);
+    CREATE TRIGGER IF NOT EXISTS media_review_events_no_update BEFORE UPDATE ON media_review_events BEGIN SELECT RAISE(ABORT, 'media review events are append-only'); END;
+    CREATE TRIGGER IF NOT EXISTS media_review_events_no_delete BEFORE DELETE ON media_review_events BEGIN SELECT RAISE(ABORT, 'media review events are append-only'); END;
+  `);
+  db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(11,?)').run(new Date().toISOString());
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS feedback_submission_keys (
+      submitter_id INTEGER NOT NULL REFERENCES users(id),
+      idempotency_key TEXT NOT NULL,
+      request_id TEXT NOT NULL UNIQUE REFERENCES feedback_requests(id),
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (submitter_id, idempotency_key)
+    );
+  `);
+  db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(12,?)').run(new Date().toISOString());
+  try { db.exec('ALTER TABLE feedback_requests ADD COLUMN triage_version INTEGER NOT NULL DEFAULT 1 CHECK(triage_version > 0)'); }
+  catch (error) { if (!/duplicate column name/i.test(error.message)) throw error; }
+  db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(13,?)').run(new Date().toISOString());
 }
 
 export function beginRun(db) {

@@ -1,0 +1,11 @@
+# QA-01 current-source queue stall and filter focus regression
+
+- **Target/build:** parent-owned isolated synthetic service `http://127.0.0.1:8793`; app.js SHA-256 `d1446ee96d06ac1054e0c073319507f27cf00b39ac62036d5206eea9a2e675fc`. Same-session current-source preflight confirmed exact parity for all 8 UI assets. No live service or data used.
+- **Browser:** Microsoft Edge 154.0.4258.37, headed Playwright Core, disposable profile, 390×844. No page exceptions. 8788 untouched.
+- **FAIL — FEEDBACK-QUEUE-STALL-01:** as admin, entered Feedback and held the first GET `/api/admin/feedback?...` for 8.2 seconds. While held, `#admin-feedback-list[aria-busy]` stayed `true`, status remained “Loading feedback queue…”, and there was no retry control (0 buttons). This reproduces the existing queue stall. Releasing the GET restored `aria-busy=false` and rendered 16 synthetic queue cards. See `admin-queue-held-8s-current.png`.
+- **FAIL — FEEDBACK-FILTER-FOCUS-01:** changing Status to Submitted and Type to Issue each left focus on `#feedback-admin-status` (a `role=status`, `aria-live=polite` paragraph), with blank status text and `:focus-visible=false`. Results loaded (15 and 5 cards), but no visible focus cue or nonempty result announcement was present. See status/type focus screenshots.
+- **NOT RUN — cross-tab identity:** two bounded attempts were harness-blocked: first, the second tab inherited the same-context admin cookie and its login form was hidden; second, the harness waited for the member list while the admin Account section was not visible. No product finding. Cross-tab identity remains NOT RUN here; prior separate current-source lifecycle evidence is linked in the canonical backlog. See `cross-tab-results.json` for the failed harness attempt.
+- **NOT RUN — media action:** synthetic dataset has no pending preview candidate; existing current-source media review empty-state is documented in the preceding role sweep.
+- **Cleanup:** Edge closed; disposable profile removed. Parent-owned 8793 service/database left running. No source or backlog edits.
+- **Structured evidence:** [results](../../output/playwright/hermann-whole-system-role-journeys-20260930/queue-focus-results.json). These are reproductions of the already-open backlog items; primary agent retains backlog ownership/status.
+

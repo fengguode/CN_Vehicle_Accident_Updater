@@ -9,7 +9,7 @@ const ascii = (value) => /^[\x00-\x7F]*$/.test(String(value || ''));
 /** Conservative, clearly machine-generated fallback; it does not infer causation or facts. */
 export function englishDescription({ title, content, brand, cause, verification_status }) {
   const status = statuses[verification_status] || 'Unverified report';
-  const subject = brand && brand !== 'Unknown' ? brand : 'an unidentified vehicle';
+  const subject = brand && brand !== 'Unknown' ? brand : 'road users';
   const location = roads[arguments[0]?.road_type] || 'an unspecified road';
   const province = provinces[arguments[0]?.province] || null;
   const place = province ? `${location} in ${province}` : location;
@@ -18,7 +18,10 @@ export function englishDescription({ title, content, brand, cause, verification_
   const severityPhrase = severity[arguments[0]?.severity];
   const publisher = arguments[0]?.publisher_name && ascii(arguments[0].publisher_name) ? ` Source: ${arguments[0].publisher_name}.` : (arguments[0]?.source_url?.includes('news.google.com') ? ' Original publisher URL unresolved; discovery reference retained.' : ' Original publisher unspecified.');
   const date = String(arguments[0]?.event_date || arguments[0]?.published_at || '').slice(0, 10);
-  return `${status} involving ${subject}${model} on ${place}, categorized as ${causePhrase}. ${modes[arguments[0]?.adas_mode] || modes.unknown}${severityPhrase ? ` Coded outcome: ${severityPhrase}.` : ''}${date ? ` Report date: ${date}.` : ''}${publisher}`;
+  const hasAdasClaim = /辅助驾驶|智能驾驶|智驾|自动驾驶|ADAS|Autopilot|FSD|NOA|NGP|自动泊车/i.test(`${title || ''} ${content || ''}`)
+    || (arguments[0]?.adas_mode && arguments[0].adas_mode !== 'unknown');
+  const modePhrase = hasAdasClaim ? ` ${modes[arguments[0]?.adas_mode] || modes.unknown}` : '';
+  return `${status} involving ${subject}${model} on ${place}, categorized as ${causePhrase}.${modePhrase}${severityPhrase ? ` Coded outcome: ${severityPhrase}.` : ''}${date ? ` Report date: ${date}.` : ''}${publisher}`;
 }
 
 const brandNames = { 理想: 'Li Auto', 理想汽车: 'Li Auto', 小米: 'Xiaomi', 小鹏: 'XPeng', 华为: 'Huawei', 问界: 'AITO', 特斯拉: 'Tesla', 比亚迪: 'BYD', 岚图: 'Voyah', 吉利: 'Geely', 尊界: 'Maextro', 蔚来: 'NIO', 智己: 'IM Motors', 极氪: 'Zeekr' };

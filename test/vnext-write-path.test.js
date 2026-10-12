@@ -5,6 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { openDb } from '../src/db.js';
 import { runCollection } from '../src/pipeline.js';
+import { listReports } from '../apps/api/reports-repository.js';
 
 test('failed source rolls back reports and cursor; retry is idempotent', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'adas-vnext-write-'));
@@ -27,6 +28,13 @@ test('failed source rolls back reports and cursor; retry is idempotent', async (
     const succeeded = await runCollection({ db, sourceIds: ['manual-platform-exports'], importOnly: true, inboxDir });
     assert.deepEqual([succeeded.inserted, succeeded.errors.length], [2, 0]);
     assert.ok(db.prepare("SELECT last_success_at FROM source_state WHERE source_id='manual-platform-exports'").get().last_success_at);
+    const stored = db.prepare('SELECT source_url,platform,author,verification_status,collected_at FROM reports WHERE source_url=?')
+      .get('https://weibo.com/test/first');
+    assert.deepEqual([stored.source_url, stored.platform, stored.verification_status], [items[0].url, 'weibo', 'unverified']);
+    assert.ok(stored.collected_at);
+    const apiPage = listReports(db, new URLSearchParams('verification_status=unverified&q=高速辅助驾驶'));
+    assert.equal(apiPage.total, 1);
+    assert.ok(apiPage.data.some((report) => report.source_url === items[0].url && report.verification_status === 'unverified'));
     const retry = await runCollection({ db, sourceIds: ['manual-platform-exports'], importOnly: true, inboxDir });
     assert.deepEqual([retry.inserted, retry.duplicates, retry.errors.length], [0, 2, 0]);
   } finally {

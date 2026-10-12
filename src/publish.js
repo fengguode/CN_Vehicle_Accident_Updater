@@ -45,8 +45,9 @@ const reports = rows.map((row) => {
 });
 const svmScores = svmModel ? rows.map((row) => {
   const score = scoreSvm(svmModel, `${row.title} ${row.content}`);
+  if (score === null) return null;
   return { fingerprint: row.fingerprint, score: Number(score.toFixed(6)), classification: score >= 0 ? 'relevant' : 'not_relevant' };
-}) : [];
+}).filter(Boolean) : [];
 const svmScoresJson = JSON.stringify(svmScores, null, 2) + '\n';
 fs.writeFileSync(path.join(outputDir, 'svm-scores.json'), svmScoresJson);
 fs.writeFileSync(path.join(siteDataDir, 'svm-scores.json'), svmScoresJson);

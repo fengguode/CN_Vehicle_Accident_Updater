@@ -1,9 +1,12 @@
 const filterFields = ['brand', 'cause', 'province', 'road_type', 'severity', 'verification_status', 'platform'];
 const sortFields = new Set(['date', 'relevance']);
 
-function toPublicReport(row) {
+function toPublicReport(row, allowedThumbnailOrigins) {
   let labels = {};
   try { labels = JSON.parse(row.labels_json || '{}'); } catch {}
+  labels.community_votes = { relevant: row.traffic_relevant_votes, not_relevant: row.traffic_not_relevant_votes };
+  labels.community_relevance = row.traffic_relevant_votes === row.traffic_not_relevant_votes
+    ? 'undecided' : (row.traffic_relevant_votes > row.traffic_not_relevant_votes ? 'supported' : 'rejected');
   const report = {
     id: row.id,
     fingerprint: row.fingerprint,
@@ -36,10 +39,21 @@ function toPublicReport(row) {
     fatalities: row.fatalities,
     verification_status: row.verification_status,
     relevance_score: row.relevance_score,
-    svm_score: row.svm_score,
+    svm_score: row.traffic_svm_score,
+    ranking_score: row.ranking_score,
     labels,
     review_notes: row.review_notes
   };
+  if (row.video_status === 'present') {
+    const thumbnail = safeHttpsUrl(row.video_thumbnail_url);
+    const source = safeHttpsUrl(row.source_url);
+    const reviewApproved = row.media_review_status === 'approved';
+    const thumbnailAllowed = thumbnail && allowedThumbnailOrigins.has(thumbnail.origin);
+    report.media = {
+      video_status: 'present',
+      thumbnail_url: reviewApproved && thumbnailAllowed && source ? thumbnail.href : null
+    };
+  }
   return Object.fromEntries(Object.entries(report).map(([key, value]) => [
     key,
     typeof value === 'string' && key !== 'source_url'
@@ -47,6 +61,26 @@ function toPublicReport(row) {
         .replace(/(?<!\d)(?:\+?86[ \t-]?)?0\d{2,3}(?:[ \t-]?\d){7,8}(?!\d)/g, '[phone redacted]')
       : value
   ]));
+}
+
+function safeHttpsUrl(value) {
+  if (typeof value !== 'string' || !value) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || url.username || url.password) return null;
+    return url;
+  } catch { return null; }
+}
+
+function configuredThumbnailOrigins(value = process.env.VIDEO_THUMBNAIL_ALLOWED_ORIGINS || '') {
+  const origins = new Set();
+  for (const entry of value.split(',').map((part) => part.trim()).filter(Boolean)) {
+    try {
+      const url = new URL(entry);
+      if (url.protocol === 'https:' && !url.username && !url.password && url.origin === entry && url.pathname === '/' && !url.search && !url.hash) origins.add(url.origin);
+    } catch {}
+  }
+  return origins;
 }
 
 function whereFor(params) {
@@ -72,13 +106,23 @@ export function listReports(db, params) {
   const requestedSort = sortFields.has(params.get('sort')) ? params.get('sort') : 'date';
   const sort = requestedSort;
   const total = db.prepare(`SELECT COUNT(*) AS total FROM reports WHERE ${sql}`).get(...values).total;
-  const columns = `id,fingerprint,source_url,publisher_name,source_name,platform,title,title_en,title_zh_short,title_en_short,content,content_en,summary_zh,summary_en,english_description,author,published_at,collected_at,event_date,brand,model,cause,adas_mode,road_type,severity,province,city,injuries,fatalities,verification_status,relevance_score,svm_score,labels_json,review_notes`;
+  const columns = `reports.id,reports.fingerprint,source_url,publisher_name,source_name,platform,title,title_en,title_zh_short,title_en_short,content,content_en,summary_zh,summary_en,english_description,author,published_at,collected_at,event_date,brand,model,cause,adas_mode,road_type,severity,province,city,injuries,fatalities,verification_status,relevance_score,traffic_svm_score,labels_json,review_notes,video_status,video_thumbnail_url,media_review_status`;
+  // Three prior votes keep one rating from overwhelming the model. As votes
+  // accumulate, the shared community judgment becomes the dominant signal.
+  const modelPrior = '(CASE WHEN traffic_svm_score IS NULL THEN 0.5 ELSE 0.5 + traffic_svm_score / (2.0 * (1.0 + ABS(traffic_svm_score))) END)';
+  const ranking = `(COALESCE(votes.relevant,0) + 3.0 * ${modelPrior}) / (COALESCE(votes.relevant,0) + COALESCE(votes.not_relevant,0) + 3.0)`;
   const order = sort === 'relevance'
-    ? 'svm_score DESC,COALESCE(event_date,published_at,collected_at) DESC,id DESC'
-    : 'COALESCE(event_date,published_at,collected_at) DESC,id DESC';
-  const rows = db.prepare(`SELECT ${columns} FROM reports WHERE ${sql} ORDER BY ${order} LIMIT ? OFFSET ?`)
+    ? 'ranking_score DESC,COALESCE(event_date,published_at,collected_at) DESC,reports.id DESC'
+    : 'COALESCE(event_date,published_at,collected_at) DESC,reports.id DESC';
+  const rows = db.prepare(`SELECT ${columns},${ranking} AS ranking_score,
+    COALESCE(votes.relevant,0) AS traffic_relevant_votes,
+    COALESCE(votes.not_relevant,0) AS traffic_not_relevant_votes FROM reports
+    LEFT JOIN (SELECT fingerprint,SUM(vote='relevant') AS relevant,SUM(vote='not_relevant') AS not_relevant
+      FROM traffic_votes GROUP BY fingerprint) AS votes ON votes.fingerprint=reports.fingerprint
+    WHERE ${sql} ORDER BY ${order} LIMIT ? OFFSET ?`)
     .all(...values, pageSize, (page - 1) * pageSize);
-  return { data: rows.map(toPublicReport), page, page_size: pageSize, total, pages: Math.ceil(total / pageSize), sort };
+  const allowedOrigins = configuredThumbnailOrigins();
+  return { data: rows.map((row) => toPublicReport(row, allowedOrigins)), page, page_size: pageSize, total, pages: Math.ceil(total / pageSize), sort };
 }
 
 export function getFilterOptions(db) {

@@ -1,0 +1,10 @@
+# QA-01 role journey current-source browser sweep (partial)
+
+- **Target/build:** isolated synthetic runtime `http://127.0.0.1:8793`, current app.js SHA-256 `d1446ee96d06ac1054e0c073319507f27cf00b39ac62036d5206eea9a2e675fc`; all eight served UI assets returned 200 and matched workspace source byte-for-byte.
+- **Browser preflight:** Microsoft Edge 154.0.4258.37, headed Playwright Core, disposable profile, 390×844. Health 200. 8788 untouched; parent-owned 8793 service left running.
+- **PASS:** signed-out Reports and feedback APIs denied (401), member/admin/media nav hidden; pending user sees approval notice, zero report cards, pending Reports API 403 and admin nav hidden; admin login exposes role navs and admin Feedback / Media Review APIs return 200; admin queue rendered 14 seeded synthetic requests, User management rendered 3 synthetic accounts, Media Review rendered its empty state.
+- **Harness correction:** initial attempt timed out because it checked a Reports-only notice while still on Account. Retry explicitly opened Reports. An intermediate unauthenticated Node-side API probe was invalid; final status checks use same-origin browser fetch and confirm 403 pending / 200 admin.
+- **NOT RUN:** approved-member report and feedback ownership/private-history journey in this browser pass; invite/approval workflow; media review action (no pending preview fixture); queue-stall recovery (`FEEDBACK-QUEUE-STALL-01`); keyboard filter focus/announcement (`FEEDBACK-FILTER-FOCUS-01`); cross-tab identity transition. Existing prior evidence is not current-hash rendered acceptance unless its own note explicitly says so.
+- **Errors:** zero page exceptions. Browser console contained expected 401 signed-out and 403 pending authorization responses.
+- **Cleanup:** Edge closed and disposable profile removed. Synthetic parent service/database left running for continued QA. No source edits and no live 8788 changes.
+- **Evidence:** [structured results](../../output/playwright/hermann-whole-system-role-journeys-20260930/results.json); screenshots in same folder. The initial harness failure screenshot is diagnostic only, not a product defect.

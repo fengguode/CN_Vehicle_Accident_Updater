@@ -31,6 +31,8 @@ export function normalizeReport(input, source = {}) {
   const content = normalizeText(input.content || input.description || input.summary);
   const labels = classify({ title, content });
   const sourceUrl = cleanUrl(input.source_url || input.url || input.link);
+  const videoStatus = ['present', 'absent', 'unknown'].includes(input.video_status) ? input.video_status : 'unknown';
+  const thumbnailUrl = videoStatus === 'present' ? validHttpsUrl(input.video_thumbnail_url) : null;
   return {
     fingerprint: fingerprint({ ...input, title, source_url: sourceUrl }),
     canonical_url: cleanUrl(input.canonical_url || sourceUrl),
@@ -57,6 +59,11 @@ export function normalizeReport(input, source = {}) {
     injuries: integerOrNull(input.injuries),
     fatalities: integerOrNull(input.fatalities),
     verification_status: input.verification_status || 'unverified',
+    video_status: videoStatus,
+    video_thumbnail_url: thumbnailUrl,
+    media_review_status: 'pending',
+    media_reviewed_by: null,
+    media_reviewed_at: null,
     raw_json: JSON.stringify(input),
     english_description: input.english_description || englishDescription({ title, content, ...labels, source_url: sourceUrl, publisher_name: publisherName(sourceUrl), verification_status: input.verification_status || 'unverified' }),
     english_description_source: input.english_description_source || ENGLISH_DESCRIPTION_SOURCE,
@@ -65,6 +72,15 @@ export function normalizeReport(input, source = {}) {
     created_at: now,
     updated_at: now
   };
+}
+
+function validHttpsUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  try {
+    const url = new URL(value);
+    if (url.protocol !== 'https:' || url.username || url.password) return null;
+    return url.toString();
+  } catch { return null; }
 }
 
 function validDate(value) {

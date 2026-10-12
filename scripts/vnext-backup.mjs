@@ -22,6 +22,8 @@ const inspect = (file) => {
     if (integrity !== 'ok') throw new Error(`Backup integrity failed: ${integrity}`);
     return { reports: db.prepare('SELECT COUNT(*) AS n FROM reports').get().n,
       votes: db.prepare('SELECT COUNT(*) AS n FROM review_votes').get().n,
+      traffic_votes: db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='traffic_votes'").get()
+        ? db.prepare('SELECT COUNT(*) AS n FROM traffic_votes').get().n : 0,
       users: db.prepare('SELECT COUNT(*) AS n FROM users').get().n };
   } finally { db.close(); }
 };

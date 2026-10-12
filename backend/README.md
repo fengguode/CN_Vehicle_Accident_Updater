@@ -1,5 +1,26 @@
 # Direct GitHub account voting
 
+## Current vNext backend story and acceptance criteria
+
+The current home-hosted vNext application is the authoritative backend for the Web UI. Its Node API, collectors/importers, and UI use the same persistent SQLite database; the separate GitHub vote API described below belongs to the earlier static-site architecture and is not the vNext write path.
+
+### Newly discovered items
+
+- When an enabled discovery source or authorized import supplies a new item, the backend persists it to the SQLite database queried by the Web UI without requiring a separate export/import or vote-sync step.
+- Keep the original source URL and available source/platform, author, publication-time, and collection-time provenance attached to the item.
+- Insert new items as `unverified`. Discovery or ingestion alone must not mark an item reviewed or verified; only an explicit human review may change that status.
+- Repeating ingestion of the same item must follow the existing deduplication/idempotency behavior and must not create a second report or overwrite review state.
+- If ingestion fails, do not expose a partially written item or advance the source cursor past data that was not committed. Retry must safely complete the write.
+
+### Relevance rating and SVM refresh
+
+- Recalculate the SVM boundary and report relevance values after every 100 newly received member relevance ratings/votes, or when an internal backend trigger requests recalculation. “Rate” means a member's relevant/not-relevant rating of a report.
+- Count newly received ratings, not API requests: retries of the same accepted rating operation must not increment the threshold twice. The selected policy is a member/report pair counts once for its lifetime; changing or revoking a rating and later restoring it updates current training input but never adds another rating to the 100-rating threshold. A durable receipt ledger and SQLite singleton store first-rating receipts, pending threshold progress, and internal refresh requests across restarts.
+- A successful recalculation writes one model version, every corresponding report score, and clears the durable trigger in one SQLite write transaction. API readers therefore see the prior complete score set or the new complete set. A failed recalculation rolls back model and score writes while retaining committed ratings and the retryable counter/trigger.
+- The score represents community relevance to the database, not verification, source credibility, severity, or causation.
+
+**Implemented refinement:** the current-vote table remains the training source; a compact `traffic_rating_receipts` table records the first time each member/report pair was ever rated, including after the current vote is revoked. Existing current votes are backfilled into this ledger at migration so pre-feature ratings do not count as new. The vote, first-rating receipt, and threshold increment commit together. Model publication happens in a subsequent transaction, so training failures cannot reject or lose an accepted vote; the counter remains at or above 100 for retry on the next vote or through the internal `retryPendingSvmRefresh` hook. `requestSvmRefresh` persists an explicit backend request before attempting publication.
+
 `github-vote-worker.js` is the vote API logic. It can run on this Windows computer through `home-vote-server.js`, using local SQLite, or on Cloudflare Workers with D1. GitHub identifies the voter through OAuth. One current vote is stored per report and GitHub account; a voter can replace or delete it. The browser stores an opaque session token in `sessionStorage`; GitHub credentials stay on the server.
 
 ## Home computer deployment

@@ -5,6 +5,7 @@ const INVITE_DAYS = 7;
 const scrypt = (password, salt) => crypto.scryptSync(password, salt, 64);
 const hash = (value) => crypto.createHash('sha256').update(value).digest('hex');
 const randomToken = () => crypto.randomBytes(32).toString('base64url');
+const registrationError = (code, message) => Object.assign(new Error(message), { code });
 
 export function migrateAuth(db) {
   db.exec(`
@@ -13,7 +14,8 @@ export function migrateAuth(db) {
       password_salt TEXT NOT NULL, password_hash TEXT NOT NULL,
       role TEXT NOT NULL CHECK(role IN ('admin','member')) DEFAULT 'member',
       active INTEGER NOT NULL DEFAULT 1, approved INTEGER NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL, created_by INTEGER REFERENCES users(id)
+      created_at TEXT NOT NULL, created_by INTEGER REFERENCES users(id),
+      anonymized INTEGER NOT NULL DEFAULT 0 CHECK(anonymized IN (0,1))
     );
     CREATE TABLE IF NOT EXISTS invitations (
       id INTEGER PRIMARY KEY, code_hash TEXT NOT NULL UNIQUE, created_by INTEGER NOT NULL REFERENCES users(id),
@@ -32,7 +34,12 @@ export function migrateAuth(db) {
   `);
   try { db.exec('ALTER TABLE users ADD COLUMN approved INTEGER NOT NULL DEFAULT 1'); }
   catch (error) { if (!/duplicate column name/i.test(error.message)) throw error; }
+  try { db.exec('ALTER TABLE users ADD COLUMN anonymized INTEGER NOT NULL DEFAULT 0 CHECK(anonymized IN (0,1))'); }
+  catch (error) { if (!/duplicate column name/i.test(error.message)) throw error; }
+  db.exec(`INSERT OR IGNORE INTO traffic_rating_receipts(fingerprint,user_id,first_received_at)
+    SELECT fingerprint,user_id,created_at FROM traffic_votes`);
   db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(2,?)').run(new Date().toISOString());
+  db.prepare('INSERT OR IGNORE INTO schema_migrations(version,applied_at) VALUES(9,?)').run(new Date().toISOString());
 }
 
 function audit(db, userId, action, detail = null) {
@@ -48,6 +55,7 @@ function passwordRecord(password) {
 export function bootstrapAdmin(db, username, password) {
   migrateAuth(db);
   validateCredentials(username, password);
+  validateNonReservedUsername(username);
   const record = passwordRecord(password);
   db.exec('BEGIN IMMEDIATE');
   try {
@@ -65,24 +73,35 @@ export function validateCredentials(username, password) {
   if (typeof password !== 'string' || password.length < 12 || password.length > 200) throw new Error('Password must be 12–200 characters.');
 }
 
+function validateNonReservedUsername(username) {
+  if (/^anonymous-/i.test(username.trim())) throw new Error('Usernames starting with anonymous- are reserved.');
+}
+
 export function registerUser(db, username, password, inviteCode) {
   validateCredentials(username, password);
-  if (typeof inviteCode !== 'string' || inviteCode.length < 20) throw new Error('A valid invitation code is required.');
+  validateNonReservedUsername(username);
+  if (typeof inviteCode !== 'string' || inviteCode.length < 20) throw registrationError('invalid_invitation_code', 'A valid invitation code is required.');
   const now = new Date().toISOString();
   const invite = db.prepare('SELECT * FROM invitations WHERE code_hash=? AND used_at IS NULL AND expires_at>?').get(hash(inviteCode), now);
-  if (!invite) throw new Error('Invitation code is invalid, expired, or already used.');
+  if (!invite) throw registrationError('invalid_invitation_code', 'Invitation code is invalid, expired, or already used.');
   const record = passwordRecord(password);
   db.exec('BEGIN IMMEDIATE');
   try {
     const current = db.prepare('SELECT id FROM invitations WHERE id=? AND used_at IS NULL AND expires_at>?').get(invite.id, now);
-    if (!current) throw new Error('Invitation code is invalid, expired, or already used.');
+    if (!current) throw registrationError('invalid_invitation_code', 'Invitation code is invalid, expired, or already used.');
     const result = db.prepare('INSERT INTO users(username,password_salt,password_hash,role,active,approved,created_at,created_by) VALUES(?,?,?,\'member\',1,0,?,?)')
       .run(username.trim(), record.salt, record.passwordHash, now, invite.created_by);
     db.prepare('UPDATE invitations SET used_at=?,used_by=? WHERE id=?').run(now, Number(result.lastInsertRowid), invite.id);
     audit(db, Number(result.lastInsertRowid), 'register');
     db.exec('COMMIT');
     return Number(result.lastInsertRowid);
-  } catch (error) { db.exec('ROLLBACK'); throw error; }
+  } catch (error) {
+    db.exec('ROLLBACK');
+    if (/UNIQUE constraint failed: users\.username/i.test(error.message)) {
+      throw registrationError('username_taken', 'That username is unavailable.');
+    }
+    throw error;
+  }
 }
 
 export function authenticate(db, username, password) {
@@ -189,13 +208,16 @@ export function listInvitations(db) {
 }
 
 export function listUsers(db) {
-  return db.prepare('SELECT id,username,role,active,approved,created_at,created_by FROM users ORDER BY id').all()
-    .map((u) => ({ ...u, active: Boolean(u.active), approved: Boolean(u.approved) }));
+  return db.prepare(`SELECT u.id,u.username,u.role,u.active,u.approved,u.anonymized,u.created_at,u.created_by,
+    (SELECT COUNT(*) FROM traffic_votes v WHERE v.user_id=u.id) AS vote_count,
+    (SELECT COUNT(*) FROM traffic_rating_receipts r WHERE r.user_id=u.id) AS rating_receipt_count FROM users u ORDER BY u.id`).all()
+    .map((u) => ({ ...u, active: Boolean(u.active), approved: Boolean(u.approved), anonymized: Boolean(u.anonymized) }));
 }
 
 export function updateUser(db, id, actorId, changes) {
   const user = db.prepare('SELECT * FROM users WHERE id=?').get(id);
   if (!user) return false;
+  if (user.anonymized) throw new Error('Anonymized accounts cannot be changed or restored.');
   if (changes.role !== undefined && typeof changes.role !== 'string') throw new Error('Role must be a string.');
   if (changes.active !== undefined && typeof changes.active !== 'boolean') throw new Error('Active status must be true or false.');
   if (changes.approved !== undefined && typeof changes.approved !== 'boolean') throw new Error('Approval status must be true or false.');
@@ -208,6 +230,32 @@ export function updateUser(db, id, actorId, changes) {
   if (!active) db.prepare('DELETE FROM sessions WHERE user_id=?').run(id);
   audit(db, actorId, 'update_user', JSON.stringify({ id, role, active: Boolean(active), approved: Boolean(approved) }));
   return true;
+}
+
+export function anonymizeUser(db, id, actorId) {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const user = db.prepare('SELECT * FROM users WHERE id=?').get(id);
+    if (!user) { db.exec('COMMIT'); return false; }
+    if (user.anonymized) throw new Error('Account is already anonymized.');
+    if (user.active) throw new Error('Disable the account before anonymizing it.');
+    const now = new Date().toISOString();
+    const salt = crypto.randomBytes(16).toString('hex');
+    const passwordHash = scrypt(randomToken(), salt).toString('hex');
+    const anonymousBase = `anonymous-${id}`;
+    let username = anonymousBase;
+    let suffix = 0;
+    while (db.prepare('SELECT 1 FROM users WHERE username=? COLLATE NOCASE AND id<>?').get(username, id)) {
+      suffix += 1;
+      username = `${anonymousBase}-${suffix}`;
+    }
+    db.prepare(`UPDATE users SET username=?,password_salt=?,password_hash=?,role='member',approved=0,anonymized=1 WHERE id=?`)
+      .run(username, salt, passwordHash, id);
+    db.prepare('DELETE FROM sessions WHERE user_id=?').run(id);
+    audit(db, actorId, 'anonymize_user', JSON.stringify({ id, previous_role: user.role }));
+    db.exec('COMMIT');
+    return true;
+  } catch (error) { db.exec('ROLLBACK'); throw error; }
 }
 
 export function auditAuth(db, userId, action, detail = null) { audit(db, userId, action, detail); }

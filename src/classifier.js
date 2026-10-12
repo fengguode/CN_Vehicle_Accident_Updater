@@ -32,10 +32,12 @@ export function classify(input) {
   const mode = scoreMap(text, taxonomy.adasModes, 'unknown');
   const province = taxonomy.provinces.find((name) => normalized(text).includes(normalized(name))) || null;
   const adasTerms = ['辅助驾驶', '智能驾驶', '自动驾驶', 'adas', 'autopilot', 'fsd', 'noa', 'nop', 'ngp', '智驾', '自动泊车', '泊车辅助'];
-  const accidentTerms = ['事故', '车祸', '碰撞', '撞', '追尾', '追撞', '撞车', '失控', '伤亡', '险情', '剐蹭', '蹭到', '擦挂', '侧翻'];
+  const accidentTerms = ['事故', '车祸', '碰撞', '撞', '追尾', '追撞', '撞车', '失控', '伤亡', '险情', '剐蹭', '蹭到', '擦挂', '侧翻', '翻车', '肇事', '交通事故'];
+  const trafficTerms = ['交通', '道路', '公路', '高速', '路口', '斑马线', '车辆', '汽车', '轿车', '货车', '客车', '公交', '出租车', '网约车', '电动车', '摩托车', '自行车', '司机', '驾驶员', '车主', '行人', '泊车', '停车', '开车'];
   const hasAdas = adasTerms.some((x) => normalized(text).includes(x));
   const hasAccident = accidentTerms.some((x) => normalized(text).includes(x));
-  const relevanceScore = Number(((hasAdas ? 0.55 : 0) + (hasAccident ? 0.35 : 0) + (brand.hits.length ? 0.1 : 0)).toFixed(2));
+  const hasTraffic = trafficTerms.some((x) => normalized(text).includes(x)) || brand.hits.length > 0 || road.label !== 'unknown';
+  const relevanceScore = Number(((hasAccident ? 0.6 : 0) + (hasTraffic ? 0.3 : 0) + (hasAdas ? 0.1 : 0)).toFixed(2));
   return {
     brand: brand.label,
     cause: cause.label,

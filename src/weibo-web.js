@@ -42,7 +42,9 @@ export async function enrichWeiboArticle(item, options = {}) {
     const html = await response.text();
     if (/passport\.weibo\.com|visitor system|captcha|验证码|登录后|请登录/i.test(html)) return { item, enriched: false, reason: 'login_or_captcha_wall' };
     const content = extractWeiboArticleText(html);
-    return content ? { item: { ...item, content, enrichment_source: 'weibo_public_html' }, enriched: true, reason: null } : { item, enriched: false, reason: 'no_conservative_text' };
+    if (!content) return { item, enriched: false, reason: 'no_conservative_text' };
+    if (content.length <= cleanText(item.content || '').length) return { item, enriched: false, reason: 'not_longer_than_feed' };
+    return { item: { ...item, content, enrichment_source: 'weibo_public_html' }, enriched: true, reason: null };
   } catch (error) { return { item, enriched: false, reason: error.name === 'TimeoutError' ? 'timeout' : 'fetch_failed' }; }
 }
 

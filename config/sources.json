@@ -1,6 +1,35 @@
 {
   "sources": [
     {
+      "id": "google-news-china-traffic",
+      "name": "Google News: China road incident discovery",
+      "type": "rss-search",
+      "enabled": false,
+      "max_resolve_candidates": 20,
+      "resolve_timeout_ms": 8000,
+      "platform": "news_index",
+      "url": "https://news.google.com/rss/search?q=%E4%BA%A4%E9%80%9A%E4%BA%8B%E6%95%85%20%E8%BD%A6%E7%A5%B8%20%E4%B8%AD%E5%9B%BD&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+      "keyword_groups": [["交通事故", "车祸", "碰撞", "追尾", "撞车", "翻车"]],
+      "notes": "Public discovery feed; location and incident details remain unverified until review."
+    },
+    {
+      "id": "google-news-weibo-traffic",
+      "name": "Google News: public Weibo road incident discovery",
+      "type": "rss-search",
+      "enabled": true,
+      "platform": "weibo_web_index",
+      "url": "https://news.google.com/rss/search?q=site%3Aweibo.com%20(%E4%BA%A4%E9%80%9A%E4%BA%8B%E6%95%85%20OR%20%E8%BD%A6%E7%A5%B8%20OR%20%E6%92%9E%E8%BD%A6%20OR%20%E8%BF%BD%E5%B0%BE)&hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
+      "keyword_groups": [["交通事故", "车祸", "碰撞", "追尾", "撞车", "翻车"]],
+      "max_resolve_candidates": 20,
+      "require_resolved": true,
+      "allowed_hosts": ["weibo.com"],
+      "enrich_weibo_web": true,
+      "max_enrichments": 5,
+      "enrich_delay_ms": 1000,
+      "enrich_timeout_ms": 10000,
+      "notes": "Public Weibo links found through a web index; no login bypass."
+    },
+    {
       "id": "bing-weibo-adas",
       "name": "Bing web index: Weibo ADAS accident reports",
       "type": "rss-search",
@@ -31,7 +60,7 @@
       "id": "google-news-assisted-driving",
       "name": "Google News: assisted-driving accident discovery",
       "type": "rss-search",
-      "enabled": true,
+      "enabled": false,
       "max_resolve_candidates": 20,
       "resolve_timeout_ms": 8000,
       "platform": "news_index",
@@ -42,7 +71,7 @@
       "id": "google-news-smart-driving",
       "name": "Google News: smart-driving collision discovery",
       "type": "rss-search",
-      "enabled": true,
+      "enabled": false,
       "max_resolve_candidates": 20,
       "resolve_timeout_ms": 8000,
       "platform": "news_index",

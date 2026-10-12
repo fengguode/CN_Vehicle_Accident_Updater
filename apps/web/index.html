@@ -3,69 +3,161 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Public reports of ADAS-related road incidents in China">
-  <title>China ADAS Incident Database</title>
+  <meta name="description" content="Shared database of publicly reported road incidents in China">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <title>China Traffic Incident Database</title>
   <link rel="stylesheet" href="/styles.css">
-  <script defer src="/app.js"></script>
+  <script type="module" src="/app.js"></script>
 </head>
 <body>
   <header class="page-header">
-    <div>
-      <p class="eyebrow" data-i18n="eyebrow">CHINA ADAS INCIDENT DATABASE</p>
-      <h1 data-i18n="heading">Reported incident leads</h1>
+    <a class="brand" href="#intro" aria-label="China Traffic Incident Database home" data-i18n-aria-label="home">
+      <span class="brand-mark" aria-hidden="true">CT</span>
+      <span><span class="eyebrow" data-i18n="eyebrow">CHINA TRAFFIC INCIDENT DATABASE</span><span class="brand-name">Incident Monitor</span></span>
+    </a>
+    <div class="header-actions">
+      <nav id="workspace-nav" class="workspace-nav" aria-label="Workspace" data-i18n-aria-label="workspaceNav">
+        <button type="button" class="nav-button" data-view-target="reports" aria-current="page" data-i18n="reportsNav">Reports</button>
+        <button type="button" class="nav-button" data-view-target="account" data-i18n="account">Account</button>
+        <button id="admin-nav" type="button" class="nav-button" data-view-target="admin" data-i18n="userManagement" hidden>User management</button>
+        <button id="feedback-nav" type="button" class="nav-button" data-view-target="feedback" data-i18n="feedbackNav" hidden>Feedback</button>
+        <button id="media-review-nav" type="button" class="nav-button" data-view-target="media-review" data-i18n="mediaReviewNav" hidden>Media review</button>
+      </nav>
+      <button id="account-entry" class="quiet-button" type="button" data-i18n="login">Log in</button>
+      <button id="language-toggle" class="quiet-button" type="button" aria-label="Switch to Chinese" data-i18n-aria-label="switchLanguage">中文</button>
     </div>
-    <button id="language-toggle" type="button" aria-label="Switch language">中文</button>
   </header>
   <main>
-    <section class="auth-panel" aria-label="Account">
-      <div id="auth-status" aria-live="polite"></div>
-      <form id="auth-form">
-        <label><span data-i18n="username">Username</span><input name="username" autocomplete="username" required minlength="3" maxlength="32"></label>
-        <label><span data-i18n="password">Password</span><input name="password" type="password" autocomplete="current-password" required minlength="12" maxlength="200"></label>
-        <label id="invite-field" hidden><span data-i18n="inviteCode">Invitation code</span><input name="invite_code" autocomplete="off"></label>
-        <button id="auth-submit" type="submit" data-i18n="login">Log in</button>
-        <button id="auth-mode" type="button" data-i18n="needInvite">Register with invitation</button>
-      </form>
-      <div id="account-actions" hidden>
-        <button id="logout" type="button" data-i18n="logout">Log out</button>
-        <button id="create-invite" type="button" data-i18n="createInvite">Create invitation</button>
-        <output id="invite-result"></output>
-        <form id="password-form">
-          <label><span data-i18n="currentPassword">Current password</span><input name="current_password" type="password" autocomplete="current-password" required minlength="12" maxlength="200"></label>
-          <label><span data-i18n="newPassword">New password</span><input name="new_password" type="password" autocomplete="new-password" required minlength="12" maxlength="200"></label>
-          <button type="submit" data-i18n="changePassword">Change password</button>
-        </form>
+    <section id="reports-view" data-view="reports">
+    <section id="intro" class="intro" aria-labelledby="heading">
+      <div>
+        <p class="eyebrow" data-i18n="workspaceLabel">RESEARCH WORKSPACE</p>
+        <h1 id="heading" data-i18n="heading">Reported road incident leads</h1>
+        <p class="intro-copy" data-i18n="leadExplainer">These are public reports collected as research leads. A listing is not confirmation that an incident occurred or that a vehicle system caused it.</p>
       </div>
-      <section id="admin-panel" hidden>
-        <h2 data-i18n="userManagement">User management</h2>
-        <div id="admin-users"></div>
-      </section>
+      <div id="workspace-summary" class="workspace-summary database-content" aria-live="polite">
+        <strong id="record-total" data-i18n="loading">Loading reports…</strong>
+        <span id="latest-collection"></span>
+      </div>
     </section>
+
     <section id="data-access-notice" class="access-notice" aria-live="polite" hidden></section>
-    <section class="summary database-content" aria-live="polite">
-      <span id="record-total" data-i18n="loading">Loading reports…</span>
-      <span id="latest-collection"></span>
+
+    <section class="search-panel database-content" aria-label="Search reports" data-i18n-aria-label="searchRegion">
+      <label class="search-label" for="query" data-i18n="keyword">Search reports</label>
+      <div class="search-row">
+        <input id="query" type="search" placeholder="Title, content, source" autocomplete="off">
+        <label class="sort-control"><span data-i18n="sort">Sort by</span>
+          <select id="sort">
+            <option value="date" data-i18n="dateSort">Date (newest first)</option>
+            <option value="relevance" data-i18n="relevanceSort">Community relevance</option>
+          </select>
+        </label>
+      </div>
+      <button id="reset-filters" class="quiet-button reset-button" type="button" data-i18n="resetFilters">Reset filters</button>
+      <details class="advanced-filters">
+        <summary data-i18n="moreFilters">More filters</summary>
+        <div class="filter-grid">
+          <label><span data-i18n="brand">Brand</span><select data-filter="brand"><option value="" data-i18n="all">All</option></select></label>
+          <label><span data-i18n="cause">Cause</span><select data-filter="cause"><option value="" data-i18n="all">All</option></select></label>
+          <label><span data-i18n="province">Province</span><select data-filter="province"><option value="" data-i18n="all">All</option></select></label>
+          <label><span data-i18n="road">Road type</span><select data-filter="road_type"><option value="" data-i18n="all">All</option></select></label>
+          <label><span data-i18n="verification">Verification</span><select data-filter="verification_status"><option value="" data-i18n="all">All</option></select></label>
+        </div>
+      </details>
     </section>
-    <section class="filters database-content" aria-label="Filter reports">
-      <label><span data-i18n="keyword">Keyword</span> <input id="query" type="search" placeholder="Title, content, source"></label>
-      <label><span data-i18n="brand">Brand</span> <select data-filter="brand"><option value="" data-i18n="all">All</option></select></label>
-      <label><span data-i18n="cause">Cause</span> <select data-filter="cause"><option value="" data-i18n="all">All</option></select></label>
-      <label><span data-i18n="province">Province</span> <select data-filter="province"><option value="" data-i18n="all">All</option></select></label>
-      <label><span data-i18n="road">Road type</span> <select data-filter="road_type"><option value="" data-i18n="all">All</option></select></label>
-      <label><span data-i18n="verification">Verification</span> <select data-filter="verification_status"><option value="" data-i18n="all">All</option></select></label>
-      <label><span data-i18n="sort">Sort by</span>
-        <select id="sort">
-          <option value="date" data-i18n="dateSort">Date (newest first)</option>
-          <option value="relevance" data-i18n="relevanceSort">SVM relevance</option>
-        </select>
-      </label>
-    </section>
-    <section id="reports" class="reports database-content" aria-live="polite"></section>
-    <nav class="pagination database-content" aria-label="Report pages">
-      <button id="previous" type="button" disabled data-i18n="previous">Previous</button>
-      <span id="page-status"></span>
+
+    <div class="results-heading database-content">
+      <h2 data-i18n="resultsHeading">Reports</h2>
+      <span id="page-status" aria-live="polite"></span>
+    </div>
+    <p id="action-status" class="action-status" aria-live="polite"></p>
+    <section id="reports" class="reports database-content" aria-live="polite" aria-busy="false"></section>
+    <nav class="pagination database-content" aria-label="Report pages" data-i18n-aria-label="reportPages">
+      <button id="previous" class="quiet-button" type="button" disabled data-i18n="previous">Previous</button>
       <button id="next" type="button" disabled data-i18n="next">Next</button>
     </nav>
+    </section>
+
+    <section id="account-view" class="workspace-view" data-view="account" hidden aria-labelledby="account-heading">
+      <div class="view-heading"><h1 id="account-heading" tabindex="-1" data-i18n="account">Account</h1><span id="auth-status" aria-live="polite"></span></div>
+      <div class="account-section account-content">
+        <form id="auth-form">
+          <p class="section-intro" data-i18n="accountIntro">Sign in with an approved account to review and rate reports.</p>
+          <div class="account-fields">
+            <label><span data-i18n="username">Username</span><input name="username" autocomplete="username" required minlength="3" maxlength="32"></label>
+            <label><span data-i18n="password">Password</span><input name="password" type="password" autocomplete="current-password" required minlength="12" maxlength="200"></label>
+                <label id="invite-field" hidden><span data-i18n="inviteCode">Invitation code</span><input name="invite_code" aria-describedby="invite-help" autocomplete="off"></label>
+          </div>
+              <p id="invite-help" class="section-intro" data-i18n="inviteHelp" hidden>Ask an approved member to create a one-use invitation code for you.</p>
+          <div class="button-row"><button id="auth-submit" type="submit" data-i18n="login">Log in</button><button id="auth-mode" class="quiet-button" type="button" data-i18n="needInvite">Register with invitation</button></div>
+        </form>
+        <p id="account-message" class="account-message" role="status" aria-live="polite"></p>
+        <div id="account-actions" hidden>
+          <div class="button-row"><button id="logout" class="quiet-button" type="button" data-i18n="logout">Log out</button><button id="create-invite" type="button" data-i18n="createInvite">Create invitation</button></div>
+          <output id="invite-result" aria-live="polite"></output>
+          <form id="password-form">
+            <h3 data-i18n="securityHeading">Password and security</h3>
+            <div class="account-fields">
+              <label><span data-i18n="currentPassword">Current password</span><input name="current_password" type="password" autocomplete="current-password" required minlength="12" maxlength="200"></label>
+              <label><span data-i18n="newPassword">New password</span><input name="new_password" type="password" autocomplete="new-password" required minlength="12" maxlength="200"></label>
+            </div>
+            <button type="submit" data-i18n="changePassword">Change password</button>
+          </form>
+          <section id="feedback-request-section" aria-labelledby="feedback-request-heading">
+            <h3 id="feedback-request-heading" data-i18n="feedbackMyRequests">Issues and feature requests</h3>
+            <p class="section-intro" data-i18n="feedbackIntro">Send feedback to the project team and track its status here.</p>
+            <p class="feedback-meta" data-i18n="feedbackPrivacy">Do not include passwords, tokens, unnecessary personal information, or graphic material.</p>
+            <form id="feedback-form">
+              <div class="account-fields">
+                <label><span data-i18n="feedbackType">Request type</span><select name="type" required><option value="Issue" data-i18n="feedbackIssue">Issue</option><option value="Feature" data-i18n="feedbackFeature">Feature request</option></select></label>
+                <label><span data-i18n="feedbackTitle">Title</span><input name="title" required minlength="5" maxlength="120"></label>
+                <label class="feedback-wide"><span data-i18n="feedbackDescription">Description</span><textarea name="description" required minlength="10" maxlength="4000" rows="5"></textarea></label>
+                <label class="feedback-wide"><span data-i18n="feedbackContext">Reproduction steps or additional context (optional)</span><textarea name="context" maxlength="2000" rows="3"></textarea></label>
+              </div>
+              <div class="button-row"><button id="feedback-submit" type="submit" data-i18n="feedbackSubmit">Submit request</button><button id="feedback-refresh" class="quiet-button" type="button" data-i18n="feedbackRefresh">Refresh my requests</button></div>
+            </form>
+            <p id="feedback-message" class="account-message" role="status" aria-live="polite"></p>
+            <p id="feedback-list-status" class="feedback-list-status" role="status" aria-live="polite" hidden></p>
+            <div id="my-feedback-list" class="feedback-list" aria-live="polite" aria-busy="false"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+    <section id="admin-view" class="workspace-view" data-view="admin" hidden aria-labelledby="admin-heading">
+      <div class="view-heading"><h1 id="admin-heading" tabindex="-1" data-i18n="userManagement">User management</h1><span data-i18n="adminOnly">Administrator access</span></div>
+      <section id="admin-panel" class="account-section admin-content" hidden>
+        <div class="account-content"><p id="admin-load-status" role="status" aria-live="polite"></p><div id="admin-users"></div></div>
+      </section>
+    </section>
+    <section id="feedback-view" class="workspace-view" data-view="feedback" hidden aria-labelledby="feedback-admin-heading">
+      <div class="view-heading"><h1 id="feedback-admin-heading" tabindex="-1" data-i18n="feedbackAdminHeading">Feedback triage</h1><span data-i18n="adminOnly">Administrator access</span></div>
+      <section class="account-section admin-content">
+        <div class="account-content">
+          <p id="feedback-admin-intro" class="section-intro" data-i18n="feedbackAdminIntro">Review and update issue reports and feature requests.</p>
+          <div class="account-fields feedback-filters">
+            <label><span data-i18n="feedbackFilterStatus">Filter by status</span><select id="feedback-filter-status" aria-label="Filter feedback by status" data-i18n-aria-label="feedbackFilterStatusLabel"><option value="" data-i18n="feedbackAllStatuses">All statuses</option></select></label>
+            <label><span data-i18n="feedbackFilterType">Filter by type</span><select id="feedback-filter-type" aria-label="Filter feedback by type" data-i18n-aria-label="feedbackFilterTypeLabel"><option value="" data-i18n="feedbackAllTypes">All request types</option></select></label>
+          </div>
+          <p id="feedback-admin-status" role="status" aria-live="polite"></p><div id="admin-feedback-list" class="feedback-list" aria-live="polite" aria-busy="false"></div>
+          <button id="feedback-load-more" class="quiet-button" type="button" data-i18n="feedbackLoadMore" hidden>Load older requests</button>
+        </div>
+      </section>
+    </section>
+    <section id="media-review-view" class="workspace-view" data-view="media-review" hidden aria-labelledby="media-review-heading">
+      <div class="view-heading"><h1 id="media-review-heading" tabindex="-1" data-i18n="mediaReviewHeading">Media review</h1><span data-i18n="adminOnly">Administrator access</span></div>
+      <section class="account-section admin-content">
+        <div class="account-content">
+          <p class="section-intro" data-i18n="mediaReviewIntro">Review platform supplied video covers separately from incident verification.</p>
+          <div class="account-fields media-review-filters">
+            <label><span data-i18n="mediaReviewFilter">Filter by media review status</span><select id="media-review-filter"><option value="pending" data-i18n="mediaReviewPending">Pending previews</option><option value="approved" data-i18n="mediaReviewApproved">Approved previews</option><option value="rejected" data-i18n="mediaReviewRejected">Rejected previews</option></select></label>
+          </div>
+          <div class="button-row"><button id="media-review-refresh" class="quiet-button" type="button" data-i18n="mediaReviewRefresh">Refresh previews</button></div>
+          <p id="media-review-status" role="status" aria-live="polite"></p>
+          <div id="media-review-list" class="media-review-list" aria-busy="false"></div>
+        </div>
+      </section>
+    </section>
   </main>
 </body>
 </html>

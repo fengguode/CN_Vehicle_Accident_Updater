@@ -1,0 +1,62 @@
+# UI-ACCEPT-03 — preserve focus after rating a report
+
+**Status:** requirements agreed; implementation complete and independently reviewed; browser regression partially complete.  
+**Priority:** P1 within the existing UI completion gate.  
+**Target:** `updater-vnext` current UI; disposable user session only.
+
+## Reproduction and root cause
+
+On a disposable approved-member session, open a report's details and activate **Relevant**. The rating request succeeds, but the report list is rebuilt. The recreated native `<details>` starts closed, so the focus-restoration code cannot focus the rating button inside it. Focus falls to `<body>` and the open report context is lost. The Sep 28 User Tester measured scroll position 1731 after the rerender. See [`2026-09-28-user-tester-disposable.md`](../qa/2026-09-28-user-tester-disposable.md).
+
+The System Architect and Worker traced this to `apps/web/app.js`: vote controls are descendants of `<details>`; `loadReports()` replaces all cards, then the focus restore targets a button inside the newly closed disclosure. `test/web-viewport.test.js` exercises the separate `apps/web/viewport.js` helper using visible fake buttons and does not exercise the real disclosure behavior. Root-cause classification: UI implementation error, with an integration-test coverage gap.
+
+## Agreed behavior
+
+Architect, Chief Product Designer, Worker, and Controller agree this is part of the P1 UI gate. Dennis independently reviewed the proposal. Rejected POST/DELETE and committed POST/DELETE followed by failed GET are separate states. On a committed action followed by failed refresh, retain the previous list/disclosure/scroll, reconcile the user's vote, and visibly state that the latest report data could not load. Hide or mark community counts, ranking scores, and relevance-sort results stale until refresh succeeds. This is an interaction-state correction; it does not depend on the separately pending source-first card presentation decision.
+
+1. **Save/change:** after a successful vote save or change, keep the same report's details disclosure open and focus the rating button matching the saved vote.
+2. **Undo:** keep the disclosure open and focus the rating button matching the vote that was removed.
+3. **Action feedback/context:** retain the existing polite success announcement and preserve the viewport around the report. Do not steal focus during unrelated/background refreshes.
+4. **Vote POST/DELETE rejection:** treat the action as uncommitted. Keep the existing DOM/disclosure and local vote state, re-enable and focus the invoked control, and announce that the rating change/removal was not saved. Do not issue a reports refresh.
+5. **Vote POST/DELETE success, reports GET failure:** treat the vote as committed. Keep the prior report list/disclosure and viewport; reconcile that card's rating controls with the committed per-user vote. For Save/Change, focus the button for the saved vote; for Undo, focus the button corresponding to the removed vote, now unpressed. Show a stale-data notice near Results and a visible Retry control with a clear accessible name. Announce a localized, action-specific message equivalent to “Your rating was saved. Latest report data could not be loaded; counts and scores may be stale. Retry.” or “Your rating was removed. Latest report data could not be loaded; counts and scores may be stale. Retry.” Hide or accessibly mark community counts, ranking scores, and relevance-sort results stale until a successful refresh. Retry failure retains the stale list and retry control; retry success refreshes normally.
+6. **Report missing after successful refresh:** if refreshed results no longer contain the acted-on report, focus a visible Results heading/status (programmatically focusable with `tabindex="-1"`) and announce the list change. Let the browser bring this fallback into view; do not reapply the old report scroll and push it offscreen. Never focus a detached or hidden control or leave focus on `<body>` after the action.
+7. **Data meaning:** keep lead verification state and source provenance unchanged; do not present stale community counts, ranking scores, or relevance ordering as current.
+8. **Authorization denial:** if a report GET returns 401 or 403, fail closed immediately. Clear/hide report cards, summaries/counts, report-derived filter choices, and local vote state before checking `/api/auth/me`; do not retain them behind a transient-error Retry. Route to the visible account/access state and move focus to a visible Account/access heading, never a hidden control or `<body>`. If auth confirms signed-out or pending/revoked, show that state. If auth still says approved or the auth check fails, keep report data blocked and show an access-check error with a deliberate retry. If POST/DELETE was denied, explain that the vote did not commit and access changed; do not issue a report GET. If the vote committed and the following GET was denied, preserve the fact that the vote committed in the announcement, then report access denial; do not claim the vote failed or show the cached list.
+9. **Superseded refresh:** when another user-initiated report request supersedes a vote-triggered GET, classify the old result as obsolete, not a fetch failure. It must not create the stale-data/Retry state, restore the old viewport, or move focus from the newer search/sort flow. The newest request owns list, loading/error state, and focus. The committed vote may be announced once without stealing focus; if the newer request fails, show only that request's ordinary error/retry UI.
+
+## Scope
+
+- Preserve the relevant report/disclosure/action context around vote-triggered list replacement.
+- Keep app and focused tests on one shared viewport/focus helper where practical, avoiding a test-only helper implementation.
+- Cover save, change, undo, failure, and removed-report fallback.
+
+Out of scope: changing what votes mean; changing report-card information hierarchy or media preview behavior; changing API contracts, database schema, account permissions, scheduler configuration, or live data.
+
+## Acceptance checks
+
+| ID | Scenario | Expected result |
+|---|---|---|
+| AC03-1 | Open report details and save Relevant using mouse and keyboard. | Same disclosure remains open; Relevant is focused and pressed; success is announced; viewport remains at that report. |
+| AC03-2 | Change the rating to Not relevant. | Same disclosure stays open; Not relevant receives focus and pressed state; vote counts and success message update; viewport remains stable. |
+| AC03-3 | Undo a Relevant rating and separately undo a Not relevant rating. | Undo control disappears; same disclosure stays open; focus moves to the button matching the rating just removed; removal is announced; viewport is stable. |
+| AC03-4a | Reject a rating POST and separately reject Undo's DELETE. | Each action remains uncommitted; same list/disclosure remains; original control is enabled and focused; failure is announced; no reports GET is issued. |
+| AC03-4b | Commit vote POST or DELETE, then fail reports GET. | Action is treated as committed; prior list/disclosure and viewport remain; per-user control state reconciles; community counts, ranking scores, and relevance ordering are hidden/marked stale; stale-data notice appears near Results; announce action-specific saved/removed status and latest data unavailable. Save/Change focuses the selected vote button; Undo focuses the removed vote's now-unpressed button. A visibly labeled, accessibly named Retry remains available. |
+| AC03-4c | Retry GET once with success and once with failure. | Success refreshes state and restores focus to the same report or Results fallback. Failure retains stale list/retry, keeps a meaningful focus target (Retry when activated), and announces continued failure. |
+| AC03-5 | Refresh successfully but remove the acted-on report from results. | Focus moves to visible Results heading with `tabindex="-1"`, the browser scrolls it into view, and old report scroll is not reapplied; list-change/action result is announced; no `<body>` or detached-node focus. |
+| AC03-6 | Reproduce all paths on desktop and 390px; trigger unrelated/background refresh. | Rating-action focus is restored only for that action; background refresh does not steal focus. Source and unverified state remain intact. |
+| AC03-7 | Automated regression. | The focused test exercises actual app focus/disclosure state (or a faithful DOM/browser environment), not only a visible fake button; run the targeted test and then `npm test`. |
+| AC03-8 | Commit a vote, then deny the report GET with 401 and 403; vary `/api/auth/me` response (signed-out, pending, still approved, unavailable). Delay `/api/auth/me` and inspect focus while the check is pending. Also start a newer report request before the older vote GET returns its denial. | Report cards, summary/counts, report-derived filters, and vote state are cleared/hidden immediately even if that denied request was superseded. Before the auth check resolves, focus moves from the removed control to visible Account/access state and remains there as status text updates. A committed vote is still described as committed. If access remains unresolved, data stays blocked and access-check Retry is available; no later response may repopulate report data before fresh authorization and data loading. |
+| AC03-9 | Deny vote POST and Undo DELETE with 401/403. | Vote remains uncommitted; no report GET follows. Restricted data is cleared/gated and account/access state is shown. |
+| AC03-10 | Delay vote-context report GET, then issue a newer search/sort request; test ordinary (non-401/403) older success and failure plus newer success/failure. | Superseded ordinary response/error creates no false stale-data notice/Retry and performs no focus or viewport restore. Newer request owns results and any ordinary error state. Authorization denial always takes precedence over supersession and fails closed (AC03-8). |
+
+## Ownership and QA handoff
+
+- **Worker:** `apps/web/app.js` and, if needed, the shared helper in `apps/web/viewport.js`. Preserve the existing dirty work in these files and limit changes to UI-ACCEPT-03.
+- **Test Manager / User Tester:** own only the assigned focused test file(s), not app code. Use a disposable service/database and synthetic account for browser regression. Record command, scenarios, pass/fail, artifacts, cleanup, and limitations in a QA note.
+- **Primary:** integrate, review changed-file diffs, run the focused test and relevant regression, request independent review, and update this issue status. The full UI gate remains open until UI-ACCEPT-01/02, this issue, and outstanding User Tester cases are resolved.
+
+## QA session for this requirement artifact
+
+- **Checks:** cross-read against the Sep 28 User Tester reproducer, Architect/Worker root-cause trace, Yuzhou/Worker/Controller alignment, and Dennis's reviews. Split rejected POST/DELETE from committed POST/DELETE with failed GET; verify stale counts, ranking score, and relevance ordering are not presented as current; ensure Undo focus target is the removed vote and action-specific announcements distinguish save from removal.
+- **Result:** passed focused consistency review after resolving Dennis's findings on split failure states, post-Undo focus target, localized action-specific announcements, matching POST/DELETE scope, authorization precedence, and focus during the access check. Implementation now includes status-aware denial and superseded-request handling. `node --check` passed for both app files, focused tests passed (3), and `npm test` passed (60). Dennis's independent implementation review found no remaining actionable code issue in AC03-8..10. Disposable Chrome evidence passes save/change/undo, rejected POST/DELETE, committed action with failed GET, retry failure/recovery, missing-report fallback, 390px keyboard save/undo, ordinary search focus, signed-out 401, pending 403, approved auth following 403, focused Account state during delayed auth confirmation, DELETE 403, POST 403, and a delayed old 403 after a newer successful search. See [`2026-09-28-ui-accept-03-regression.md`](../qa/2026-09-28-ui-accept-03-regression.md).
+- **Limitations:** auth-check-unavailable, write-denial 401 variants, and ordinary superseded 5xx/network browser behavior remain incomplete. UI-ACCEPT-03 and the full UI release gate remain open pending those cases and the broader role/navigation matrix.

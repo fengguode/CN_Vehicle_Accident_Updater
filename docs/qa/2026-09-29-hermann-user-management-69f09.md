@@ -1,0 +1,21 @@
+# User management responsive current-source recheck — 2026-09-29
+
+## Requested acceptance
+
+Render administrator User management on an isolated source-matched service at Edge 154, at 195×422 effective CSS width, 320×800, and 390×844. Use only synthetic admin/member accounts; inspect page and nested overflow, approved/pending row fields, labels/status, controls and focus; do not save or change role/approval/status. Source advanced during setup from the originally assigned app.js 9F56A408… to `36c12775238e6d71607c9bb74dc710443d3a30b50730fd8f10ee2b070c54b7ae`; the primary confirmed that current hash with styles.css `69f09a8d660b83e808715a2045e313a30e94eccfdbd3dddc76553a4e535454fc` and requested one bounded run.
+
+## Source drift before the accepted run
+
+The original 9F56/69F09 pair was no longer available. The first isolated parity attempt found local app.js `29761d52dec5291657ca898834532b091cc1093923ee896b3e985e8789d07197`; before Edge could launch it advanced to `bd383a1956bc699f3971a25d62783c2d5950857074d0c39b63f5d84eb4b7054b`. The primary confirmed bd383a as the next target. A second isolated attempt found app.js had advanced again to `36c12775238e6d71607c9bb74dc710443d3a30b50730fd8f10ee2b070c54b7ae` and stopped before browser interaction. The primary then verified 36c127 source/served stability and authorized the measured run below. These aborted attempts had health 200 and six-asset equality at the actual served hashes, then cleaned their synthetic DB/profile/service; ports 56654 and 49951 are closed.
+
+## Rendered acceptance — current app 36c127 / CSS 69F09A
+
+- Target: isolated same-origin `apps/api/server.js` service, port 55746, health 200. Six served UI assets matched source byte-for-byte. app.js SHA-256 `36c12775238e6d71607c9bb74dc710443d3a30b50730fd8f10ee2b070c54b7ae`; styles.css SHA-256 `69f09a8d660b83e808715a2045e313a30e94eccfdbd3dddc76553a4e535454fc`; index.html `09379f2df2553c5de80ce22c90d8953906c7781f6e5f953b4bef65dd2bea2459`; navigation.js `7a1114587842f11bace2b1b4d69f9d15d5e35ae946abf7efd0f5564461dcea56`; viewport.js `fef9e10e9114de24f83a0ca909b841c1b93f1a6aa84fe8dabb023235893922da`; report-presentation.js `d0a081dc918f6c848d15a865d890eb8695d6554d1f626a8db4f26edcf1d07d6f`.
+- Browser: Microsoft Edge 154.0.4258.37, headed direct Node Playwright API using cached `playwright-core` and unique disposable persistent profile. 195×422 is an effective CSS viewport approximation, **not native browser zoom**.
+- Synthetic fixture: one admin, one approved member, and one pending member. Only the admin login POST was issued; no Save, role, approval, enabled-state or other mutation was activated. No page errors.
+- At 195×422, document/body client width is 180px and scroll width 211px. User management heading bounds are x=12…210.6px; screenshot visibly clips the word “management” at the right edge. Approved member role/approval/active selects and Save extend to x=212.7px; pending member controls extend to x=199.1px. The row action labels are present in DOM, but their control targets extend beyond the client viewport. `#admin-users` is 125px client / 185px scroll. This is a reproducible effective-width overflow; native Edge zoom was not tested.
+- At 320×800, document/body are 305/305px; at 390×844 they are 375/375px. Both user rows, status text, labels and controls fit, with no nested horizontal overflow. The pending member shows approval value `false`; approved member shows `true`. At all three sizes the first Tab from the User management heading lands on the admin Role select with a visible 3px blue focus ring.
+- Result: **195px fails; 320px and 390px pass.** This is a new narrow-effective-width finding, distinct from the resolved 320px `UI-ADMIN-320-01` condition. It is recorded as `UI-ADMIN-195-02` in the canonical backlog.
+- Artifacts: [machine metrics and screenshots](../../output/playwright/user-management-readonly-69f09-20260929/). Cleanup passed: Edge/profile and exact temp DB directory removed, isolated service stopped and port 55746 became unreachable; live 8788 untouched.
+
+The earlier 9F56/11BE responsive result remains historical. This accepted current-source run covers 36c127/69F09 only and does not establish native zoom, screen-reader, or other assistive-technology behavior.

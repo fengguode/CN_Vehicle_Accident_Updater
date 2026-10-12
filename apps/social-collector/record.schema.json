@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ADAS Social Incident Lead",
+  "title": "China Traffic Incident Social Lead",
   "type": "object",
   "required": ["title", "url", "platform"],
   "properties": {
@@ -22,6 +22,8 @@
     "road_type": { "type": "string" },
     "adas_mode": { "type": "string" },
     "verification_status": { "type": "string", "default": "unverified" },
+    "video_status": { "type": "string", "enum": ["present", "absent", "unknown"], "default": "unknown" },
+    "video_thumbnail_url": { "type": "string", "format": "uri", "pattern": "^https://" },
     "reviewed_relevance": { "type": "boolean" },
     "review_notes": { "type": "string" }
   },
