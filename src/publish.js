@@ -3,6 +3,7 @@ import path from 'node:path';
 import { openDb } from './db.js';
 import { englishDescription, englishTitle } from './english.js';
 import { loadSvm, scoreSvm } from './svm.js';
+import { redactPublicText, sanitizePublicRecord } from './public-privacy.js';
 
 const publicRepo = path.resolve(process.argv[2] || '../china-adas-accident-database');
 const outputDir = path.join(publicRepo, 'data');
@@ -15,19 +16,6 @@ fs.mkdirSync(siteDataDir, { recursive: true });
 const db = openDb();
 const rows = db.prepare('SELECT * FROM reports ORDER BY COALESCE(published_at,collected_at) DESC, id DESC').all();
 const svmModel = loadSvm();
-function redactPublicText(value) {
-  return String(value ?? '')
-    .replace(/(?<!\d)(?:\+?86[ \t-]?)?1[3-9](?:[ \t-]?\d){9}(?!\d)/g, '[phone redacted]')
-    .replace(/(?<!\d)(?:\+?86[ \t-]?)?0\d{2,3}(?:[ \t-]?\d){7,8}(?!\d)/g, '[phone redacted]');
-}
-function sanitizePublicRecord(record) {
-  return Object.fromEntries(Object.entries(record).map(([key, value]) => [
-    key,
-    typeof value === 'string' && !['fingerprint', 'source_url', 'discovery_url'].includes(key)
-      ? redactPublicText(value)
-      : value
-  ]));
-}
 const reports = rows.map((row) => {
   const labels = JSON.parse(row.labels_json || '{}');
   const preserveSourceStart = row.english_description_source === 'human_summary_v1';
@@ -64,7 +52,7 @@ function esc(value) { return String(value ?? '').replace(/[&<>"']/g, (c) => ({ '
 const voteApiUrl = (process.env.VOTE_API_URL || '').replace(/\/+$/, '');
 if (voteApiUrl && !/^https:\/\//.test(voteApiUrl)) throw new Error('VOTE_API_URL must be an HTTPS URL');
 function abstract(value, limit = 280, preserveSourceStart = false) {
-  let text = String(value || '').replace(/\s+/g, ' ').replace(/^c\s+/i, '').replace(/\s+(?:播放视频|Play video|https?:\/\/).*/i, '').trim();
+  let text = redactPublicText(value).replace(/\s+/g, ' ').replace(/^c\s+/i, '').replace(/\s+(?:播放视频|Play video|https?:\/\/).*/i, '').trim();
   if (!preserveSourceStart) text = text.replace(/^[^#]{0,160}(?=#)/, '');
   const marker = text.search(/多亏|辅助驾驶|智驾|AEB|自动驾驶|事故|追尾|碰撞|险情|driver[- ]assistance|smart driving|automatic emergency braking|rear-end collision|crash|accident|thanks to/i);
   if (!preserveSourceStart && marker > 0 && marker < 180) text = text.slice(marker).trim();

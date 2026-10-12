@@ -16,10 +16,6 @@ A local, auditable research system for collecting public reports of ADAS-related
 
 No system can guarantee collection of “all” social-media posts. Platform login walls, API limits, deletions, private groups, censorship, and ambiguous language create measurable gaps. This project does not bypass platform access controls; add official/authorized API adapters or exports for higher coverage.
 
-## Hosting roadmap
-
-The proposed migration to a home-hosted, SQLite-backed public database is documented in [the step-by-step self-hosting plan](docs/SELF_HOSTED_DATABASE_PLAN.md). The plan is not implemented yet; v0.1.0 remains the frozen release snapshot.
-
 ## Quick start
 
 Requires Node.js 22.5 or newer (Node 24 recommended). No package install is required.
@@ -125,4 +121,4 @@ npm run publish -- ..\china-adas-accident-database
 .\scripts\publish-public.ps1
 ```
 
-The publisher uses an explicit allow-list of fields, writes `data/reports.json`, `data/metadata.json`, `data/svm-scores.json`, and `site/index.html` (including the static site's matching score snapshot), and leaves this working repository unchanged apart from its own database. Review the public repository's diff before committing or hosting it.
+The publisher uses an explicit allow-list of fields, writes `data/reports.json`, `data/metadata.json`, `data/svm-scores.json`, and `site/index.html` (including the static site's matching score snapshot), and leaves this working repository unchanged apart from its own database. Public text redacts common contact/identity patterns and unreviewed social account mentions, omits social-platform author fields, and removes source-platform attribution prefixes. Reviewed institutional mentions are retained; exact original and discovery URLs remain unchanged for provenance. Review the public repository's diff before committing or hosting it.
