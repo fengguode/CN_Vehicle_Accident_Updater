@@ -9,3 +9,5 @@ data/inbox/*.processed
 node_modules/
 coverage/
 .playwright-cli/
+# Browser profiles, screenshots, logs, and disposable UI-test databases are local QA artifacts.
+output/playwright/
